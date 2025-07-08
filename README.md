@@ -5,3 +5,4 @@
 - Voice controlled: play, pause, select songs, move back or forward in song (based on song structure: first chorus, second bridge, etc.?)
 - Spotify-integrated
 - With tabs from Ultimate-Guitar
+- Recording?
