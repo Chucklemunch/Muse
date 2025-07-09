@@ -6,7 +6,7 @@
 }
 
 .kermit-prs {
-  height: 50em;
+  height: 40em;
   padding: 1em;
   will-change: filter;
   transition: filter 300ms;
