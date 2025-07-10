@@ -5,12 +5,11 @@
 
 ### Core Features
 - Live audio input
-- Pitch detection
-- Scale/key/mode recognition
-- Interactive fretboard display
+- Pitch/string detection from audio input
+- Integration with LLM API (maybe ChatGPT) to generate detailed tab and rhythm suggestions for the next measures
+- Parsing of LLM tab/rhythm output that is converted to a playback
 - Next note(s) suggestions
 
-### Potential Tools
-- Pitchy for pitch detection
-- TonalJS for note/scale music theory stuff
-- 
+### Potential Tools/Datasets
+- [Librosa](https://librosa.org/doc/latest/index.html) (Python) for audio analysis in the backend
+- [Guitar Sounds Dataset](https://www.idmt.fraunhofer.de/en/publications/datasets/guitar.html) for training a string classifier (which string a note is coming from)
