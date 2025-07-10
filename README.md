@@ -1,12 +1,12 @@
 # Muse
-- What: A web app that listens to the user’s guitar playing (via mic) and shows real-time visual feedback on scales, keys, and suggested note transitions for improvisation.
+- What: A web app that listens to the user’s playing (start with piano, figure out guitar later)(via mic) and shows real-time visual feedback on scales, keys, and suggested note transitions for improvisation.
 - Unique angle: Uses ML to analyze note sequences and suggests "next-tone probabilities" like predictive text, but for solos.
 - Tech: Web Audio API, ML models trained on solos, pitch detection (e.g., YIN, CREPE).
 
 ### Core Features
 - Live audio input
 - Pitch/string detection from audio input
-- Integration with LLM API (maybe ChatGPT) to generate detailed tab and rhythm suggestions for the next measures
+- Integration with LLM API (maybe ChatGPT) to generate detailed note and rhythm suggestions for the next measures
 - Parsing of LLM tab/rhythm output that is converted to a playback
 - Next note(s) suggestions
 
