@@ -16,5 +16,5 @@
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime) 
 
 ### How am I  going to convert audio to MIDI to audio?
-- Audio to Midi: Spotify Basic Pitch OR Magenta
-- Midi to Audio: Magenta + something else?
+- Audio to Midi: Spotify Basic Pitch OR Magenta. Gemini suggests using Spotify basic-pitch because it is more specifically designed for converting instruments to MIDI
+- Midi to Audio: Magenta models
