@@ -5,11 +5,17 @@
 
 ### Core Features
 - Live audio input
-- Pitch/string detection from audio input
+- Converts audio to MIDI
 - Integration with LLM API (maybe ChatGPT) to generate detailed note and rhythm suggestions for the next measures
-- Parsing of LLM tab/rhythm output that is converted to a playback
 - Next note(s) suggestions
 
 ### Potential Tools/Datasets
 - [Librosa](https://librosa.org/doc/latest/index.html) (Python) for audio analysis in the backend
 - [Guitar Sounds Dataset](https://www.idmt.fraunhofer.de/en/publications/datasets/guitar.html) for training a string classifier (which string a note is coming from)
+- [MAESTRO Dataset](https://magenta.tensorflow.org/datasets/maestro#dataset) contains hours of piano playing from competition, but it's too big for a local machine (120 GB)
+- [Spotify Basic Pitch](https://basicpitch.spotify.com/about) converts audio files to MIDI
+- [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime) 
+
+### How am I  going to convert audio to MIDI to audio?
+- Audio to Midi: Spotify Basic Pitch
+- Midi to Audio: Magenta + something else?
