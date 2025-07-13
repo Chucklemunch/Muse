@@ -15,36 +15,11 @@
 - [Spotify Basic Pitch](https://basicpitch.spotify.com/about) converts audio files to MIDI
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime)
 - [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) for processing incoming audio to not block main UI thread
-- 
+- []()
 
 ### How am I  going to convert audio to MIDI to audio?
 - Audio to Midi: Spotify Basic Pitch OR Magenta. Gemini suggests using Spotify basic-pitch because it is more specifically designed for converting instruments to MIDI
 - Midi to Audio: Magenta models
-From Gemini:
-Example Concurrent Flow:
-
-Main Thread (UI, Playback Scheduling):
-
-    Sets up MediaStream (microphone input).
-
-    Creates and manages Web Workers for basic-pitch and Magenta.js.
-
-    Receives generated MIDI notes from the Magenta.js worker.
-
-    Uses Tone.js to schedule and play notes, managing an output queue to ensure continuous sound.
-
-Web Worker 1 (Audio Transcription - basic-pitch):
-
-    Receives small audio chunks from the main thread.
-
-    Performs basic-pitch inference.
-
-    Sends detected MIDI events (note-on, note-off, pitch, velocity, time) back to the main thread or directly to the AI model worker.
-
-Web Worker 2 (AI Music Generation - Magenta.js ImprovRNN):
-
-    Receives a stream of incoming MIDI events (or a continuously updated NoteSequence primer) from the transcription worker or main thread.
-
-    Continuously calls improvRnn.continueSequence() to generate short segments (e.g., 1-4 beats) of new MIDI.
-
-    Sends these generated MIDI segments back to the main thread for playback.
+1. Chunk audio input into measures (or a few measures) and send it to the basic-pitch python backend for processing
+2. Send MIDI output from basic-pitch backend to frontend where Magenta models will process it on a web worker and output more MIDI notes that represent next notes
+3. Play MIDI notes through some sort of player to create a continuous jam loop of you play -> AI plays -> you play -> etc.
