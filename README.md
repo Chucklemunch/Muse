@@ -16,7 +16,7 @@
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime)
 - [MagentaJS](https://github.com/magenta/magenta-js) for MIDI to music production in frontend after backen processing with basic-pitch
 - [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) for processing incoming audio to not block main UI thread
-- []()
+- [FastAPI](https://fastapi.tiangolo.com/) for Python backend
 
 ### How am I  going to convert audio to MIDI to audio?
 - Audio to Midi: Spotify Basic Pitch OR Magenta. Gemini suggests using Spotify basic-pitch because it is more specifically designed for converting instruments to MIDI
