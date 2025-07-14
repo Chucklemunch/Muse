@@ -14,6 +14,7 @@
 - [MAESTRO Dataset](https://magenta.tensorflow.org/datasets/maestro#dataset) contains hours of piano playing from competition, but it's too big for a local machine (120 GB)
 - [Spotify Basic Pitch](https://basicpitch.spotify.com/about) converts audio files to MIDI
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime)
+- [MagentaJS](https://github.com/magenta/magenta-js) for MIDI to music production in frontend after backen processing with basic-pitch
 - [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) for processing incoming audio to not block main UI thread
 - []()
 
