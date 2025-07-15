@@ -1,7 +1,7 @@
 # main.py
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from basic_pitch.inference import predict, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
 import uvicorn
@@ -32,46 +32,32 @@ except Exception as e:
     logger.warning("Basic-Pitch functionality will be unavailable due to model loading error.")
 
 # --- Helper function to convert pretty_midi.PrettyMIDI to a JSON-serializable format ---
-# This is a simplified representation. You might want more detail (e.g., control changes, tempo).
-def midi_to_json(midi_file: pretty_midi.PrettyMIDI):
+def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
     """
     Converts a pretty_midi.PrettyMIDI object into a JSON-serializable list of note events.
     Each note event includes start_time, end_time, pitch, and velocity.
+    Returns an empty list if pretty_midi_obj is None or has no notes.
     """
-    
-    # Check if basic-pitch returns something
-    if midi_file is None:
-        logger.warning("midi_to_json received None for midi_file. Returning empty list.")
+    if pretty_midi_obj is None:
+        logger.warning("midi_to_json received None for pretty_midi_obj. Returning empty list.")
         return []
-    else:
-        logger.warning('midi_file is not none')
-        logger.warning(midi_file.instruments)
-    
+
     midi_events = []
-    # Iterate through all tracks and messages to extract note_on/note_off events
-    for track in midi_file.tracks:
-        time = 0
-        for msg in track:
-            time += msg.time # Accumulate time for delta time messages
-            if msg.type == 'note_on' and msg.velocity > 0:
-                # Store note_on event with its start time
-                midi_events.append({
-                    "type": "note_on",
-                    "start_time": float(time), # Convert to float for JSON
-                    "pitch": msg.note,
-                    "velocity": msg.velocity
-                })
-            elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-                # Store note_off event with its end time
-                midi_events.append({
-                    "type": "note_off",
-                    "end_time": float(time), # Convert to float for JSON
-                    "pitch": msg.note
-                })
+    # pretty_midi organizes notes by instrument
+    for instrument in pretty_midi_obj.instruments:
+        for note in instrument.notes:
+            midi_events.append({
+                "type": "note", # Or "note_on" and "note_off" if you prefer
+                "start_time": float(note.start),
+                "end_time": float(note.end),
+                "duration": float(note.end - note.start),
+                "pitch": int(note.pitch), # MIDI pitch number (0-127)
+                "velocity": int(note.velocity) # MIDI velocity (0-127)
+            })
     
-    # Sort events by time for chronological playback on frontend
-    midi_events.sort(key=lambda x: x.get('start_time') or x.get('end_time'))
-    
+    # Sort events by start time for chronological playback on frontend
+    midi_events.sort(key=lambda x: x['start_time'])
+
     return midi_events
 
 # --- HTML Content for the Root Endpoint (Frontend for testing) ---
@@ -437,48 +423,6 @@ async def websocket_audio_to_midi(websocket: WebSocket):
         # Clean up resources if necessary
         audio_buffer.close()
         logger.info("WebSocket connection closed and resources cleaned up.")
-
-# --- New POST Endpoint for File Uploads (for testing) ---
-@app.post("/upload-audio-for-midi/")
-async def upload_audio_for_midi(audio_file: UploadFile = File(...)):
-    """
-    Receives an audio file via HTTP POST, processes it with basic-pitch,
-    and returns the MIDI data as JSON.
-    """
-    if not BP_MODEL:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Basic-Pitch model is not loaded on the server."
-        )
-
-    logger.info(f"Received file upload: {audio_file.filename} ({audio_file.content_type})")
-
-    # Read the content of the uploaded file
-    audio_content = await audio_file.read()
-
-    # basic-pitch's predict can take bytes directly or a path.
-    # Using BytesIO is efficient for in-memory processing.
-    audio_io = io.BytesIO(audio_content)
-
-    # Run basic-pitch inference in a separate thread to avoid blocking the event loop
-    # for potentially long audio files.
-    try:
-        logger.info(f"Processing uploaded file '{audio_file.filename}' with basic-pitch...")
-        _, midi_file, _ = await asyncio.to_thread(
-            predict, audio_io, BP_MODEL
-        )
-        
-        midi_json = midi_to_json(midi_file)
-        logger.info(f"Finished processing '{audio_file.filename}'. Detected {len(midi_json)} MIDI events.")
-        
-        return JSONResponse(content={"filename": audio_file.filename, "midi_data": midi_json})
-
-    except Exception as e:
-        logger.error(f"Error processing uploaded audio file '{audio_file.filename}': {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process audio: {e}"
-        )
     
 @app.get("/process-local-audio/")
 async def process_local_audio():
@@ -510,6 +454,7 @@ async def process_local_audio():
         
         midi_json = midi_to_json(midi_file)
         logger.info(f"Finished processing local file. Detected {len(midi_json)} MIDI events.")
+        logger.warning(midi_json)
         
         return JSONResponse(content={"source_file": LOCAL_TEST_AUDIO_PATH, "midi_data": midi_json})
 
