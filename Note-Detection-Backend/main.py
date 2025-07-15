@@ -1,6 +1,7 @@
 # main.py
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from basic_pitch.inference import predict, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
@@ -18,6 +19,15 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React dev server default
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Load Basic-Pitch Model ---
 # It's crucial to load the model once when the application starts,
@@ -161,7 +171,7 @@ html_content = """
                 }
                 // Use wss:// for HTTPS, ws:// for HTTP
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                ws = new WebSocket(`${protocol}//${window.location.host}/ws/audio_to_midi`);
+                ws = new WebSocket(`${protocol}//${window.location.host}/audio_to_midi`);
 
                 ws.onopen = (event) => {
                     logMessage('WebSocket connected!', 'info-message');
@@ -288,7 +298,7 @@ async def get_root():
     """
     return html_content
 
-@app.websocket("/ws/audio_to_midi")
+@app.websocket("/audio_to_midi")
 async def websocket_audio_to_midi(websocket: WebSocket):
     """
     WebSocket endpoint for receiving audio streams, processing them with basic-pitch,
