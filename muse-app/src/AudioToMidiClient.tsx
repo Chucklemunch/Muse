@@ -33,6 +33,14 @@ interface LogEntry {
   timestamp: string;
 }
 
+// IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
+// For local development, it's typically http://localhost:8000
+const FASTAPI_BASE_URL = "http://localhost:8000";
+// For WebSocket, convert http:// to ws:// or https:// to wss://
+const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
+const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part
+const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/ws/audio_to_midi`;
+
 const AudioToMidiClient: React.FC = () => {
   // State for UI and connection status
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -61,8 +69,10 @@ const AudioToMidiClient: React.FC = () => {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws.current = new WebSocket(`${protocol}//${window.location.host}/ws/audio_to_midi`);
+    // Use the explicitly defined WebSocket URL for FastAPI
+    ws.current = new WebSocket(FASTAPI_WS_URL);
+    logMessage(`Attempting to connect to WebSocket at: ${FASTAPI_WS_URL}`, 'info');
+
 
     ws.current.onopen = () => {
       setIsConnected(true);
@@ -85,8 +95,10 @@ const AudioToMidiClient: React.FC = () => {
         } else {
           logMessage(`Received: ${event.data}`, 'info');
         }
-      } catch (e: any) { // Use 'any' for caught error if type is uncertain, or narrow it down
-        logMessage(`Failed to parse message: ${event.data}. Error: ${e.message}`, 'error');
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        logMessage(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
+        console.error('WebSocket message parsing error:', e);
       }
     };
 
@@ -96,45 +108,39 @@ const AudioToMidiClient: React.FC = () => {
       logMessage(`WebSocket Disconnected: Code ${event.code}, Reason: ${event.reason || 'No reason'}`, 'error');
     };
 
-    ws.current.onerror = (err: Event) => { // Event type for onerror is generic Event
+    ws.current.onerror = (err: Event) => {
       setError('WebSocket Error. Check console for details.');
-      logMessage(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error'); // err.message might not exist on generic Event
+      logMessage(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error');
       console.error('WebSocket Error:', err);
     };
-  }, [logMessage]); // Dependency on logMessage, which is stable due to useCallback
+  }, [logMessage]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
       setIsRecording(false);
     }
-    // Stop all tracks in the media stream to release microphone
     if (audioStream.current) {
       audioStream.current.getTracks().forEach(track => track.stop());
-      audioStream.current = null; // Clear the stream reference
+      audioStream.current = null;
     }
   }, []);
 
   const disconnectWebSocket = useCallback(() => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.close();
-      stopRecording(); // Ensure recording stops
+      stopRecording();
     }
   }, [stopRecording]);
 
-  // Effect to manage WebSocket connection lifecycle
   useEffect(() => {
-    // Optional: Connect automatically on component mount
-    // connectWebSocket();
-
-    // Cleanup function: runs when component unmounts or dependencies change
     return () => {
       if (ws.current) {
         ws.current.close();
       }
-      stopRecording(); // Ensure microphone is released
+      stopRecording();
     };
-  }, [connectWebSocket, stopRecording]); // Dependencies for cleanup effect
+  }, [connectWebSocket, stopRecording]);
 
   // --- Microphone and Recording Logic ---
   const startRecording = async () => {
@@ -162,7 +168,7 @@ const AudioToMidiClient: React.FC = () => {
 
       mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
-          ws.current.send(event.data); // Send audio Blob directly
+          ws.current.send(event.data);
           logMessage(`Sent audio chunk (${event.data.size} bytes)`, 'debug');
         }
       };
@@ -170,20 +176,20 @@ const AudioToMidiClient: React.FC = () => {
       mediaRecorder.current.onstop = () => {
         logMessage('Recording stopped.', 'info');
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          ws.current.send("END_OF_AUDIO"); // Custom signal
+          ws.current.send("END_OF_AUDIO");
           logMessage("Sent END_OF_AUDIO signal.", 'debug');
         }
-        // Microphone stream is stopped in stopRecording cleanup
       };
 
-      mediaRecorder.current.start(500); // dataavailable event fires every 500ms
+      mediaRecorder.current.start(500);
       setIsRecording(true);
       logMessage('Recording started...', 'success');
       setError(null);
 
-    } catch (err: any) {
-      setError(`Error accessing microphone: ${err.message}`);
-      logMessage(`Error accessing microphone: ${err.message}`, 'error');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(`Error accessing microphone: ${errorMessage}`);
+      logMessage(`Error accessing microphone: ${errorMessage}`, 'error');
       console.error('Microphone access error:', err);
     }
   };
