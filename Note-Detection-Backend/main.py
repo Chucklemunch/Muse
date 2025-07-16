@@ -1,5 +1,3 @@
-# main.py
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,23 +21,20 @@ app = FastAPI()
 
 origins = [
     "http://localhost",
-    "http://localhost:5173", # NEW: Your React dev server port
-    "http://127.0.0.1:5173", # NEW: Your React dev server port
+    "http://localhost:5173", # React server port with Vite
     # Add other origins if your frontend is hosted elsewhere (e.g., your domain)
 ]
 
-# # Add CORS middleware
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # React dev server default
-    allow_credentials=False,
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Mount the directory where your React app's build output is located.
-# Assuming your React build output is in a folder named 'frontend'
-# in the same directory as main.py.
 FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist"
 
 # Check if the frontend build directory exists
@@ -47,8 +42,6 @@ if not os.path.isdir(FRONTEND_BUILD_DIR):
     logger.error(f"Frontend build directory '{FRONTEND_BUILD_DIR}' not found. "
                  "Please build your React app (`npm run build`) and place its output "
                  f"in a folder named '{FRONTEND_BUILD_DIR}' next to main.py.")
-    # You might want to raise an exception or handle this more gracefully in production
-    # For development, we'll just log an error.
 
 # Mount the directory containing your static assets.
 # For Vite, this is typically 'dist/assets' if you want to serve them under /static
@@ -241,7 +234,7 @@ async def websocket_audio_to_midi(websocket: WebSocket):
         audio_buffer.close()
         logger.info("WebSocket connection closed and resources cleaned up.")
     
-@app.get("/process-local-audio/")
+@app.get("/process-local-audio")
 async def process_local_audio():
     """
     Processes a hardcoded local audio file with basic-pitch and returns MIDI data.
@@ -281,6 +274,7 @@ async def process_local_audio():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process local audio: {e}"
         )
+        return []
     
 # This must be the LAST route defined in your FastAPI app.
 # It ensures that if no other API route matches, FastAPI will serve

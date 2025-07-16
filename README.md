@@ -10,8 +10,6 @@
 
 ### Potential Tools/Datasets
 - [Librosa](https://librosa.org/doc/latest/index.html) (Python) for audio analysis in the backend
-- [Guitar Sounds Dataset](https://www.idmt.fraunhofer.de/en/publications/datasets/guitar.html) for training a string classifier (which string a note is coming from)
-- [MAESTRO Dataset](https://magenta.tensorflow.org/datasets/maestro#dataset) contains hours of piano playing from competition, but it's too big for a local machine (120 GB)
 - [Spotify Basic Pitch](https://basicpitch.spotify.com/about) converts audio files to MIDI
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime)
 - [MagentaJS](https://github.com/magenta/magenta-js) for MIDI to music production in frontend after backen processing with basic-pitch
