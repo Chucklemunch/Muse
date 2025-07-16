@@ -15,8 +15,8 @@ function Home() {
   return (
     <>
       <div>
-        <AudioToMidiClient />
         <img src='public/kermit_prs_copy.png' className="kermit-prs" alt="Kermit PRS Picture" />
+        <AudioToMidiClient />
       </div>
       <h1>Welcome to Muse</h1>
     </>

@@ -40,11 +40,13 @@ const FASTAPI_BASE_URL = "http://localhost:8000";
 const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
 const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part
 const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_midi`;
+const FASTAPI_WS_PROCESS_LOCAL_AUDIO = `${FASTAPI_BASE_URL}/process-local-audio`;
 
 const AudioToMidiClient: React.FC = () => {
   // State for UI and connection status
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const[isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const [messages, setMessages] = useState<LogEntry[]>([]); // To display logs and MIDI data
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +63,14 @@ const AudioToMidiClient: React.FC = () => {
       return newMessages.slice(-50); // Keep only the last 50 messages
     });
   }, []); // No dependencies, so this function is stable
+
+  // -- Testing Audio Processing Using File Path in Backend --
+  const processLocalAudio = useCallback(async () => {
+      const result: BackendMidiResponse = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => (response.json()));
+      console.log('process local audio response: ', result);
+      setIsAudioProcessed(true);
+    }
+  )
 
   // --- WebSocket Connection Logic ---
   const connectWebSocket = useCallback(() => {
@@ -232,6 +242,13 @@ const AudioToMidiClient: React.FC = () => {
           style={{ backgroundColor: !isRecording ? '#cccccc' : '#dc3545', color: 'white' }}
         >
           Stop Recording
+        </button>
+        <button
+          onClick={processLocalAudio}
+          disabled={isAudioProcessed}
+          style={{ backgroundColor: isAudioProcessed ? '#cccccc' : '#28a745', color: 'white' }}
+        >
+          {isAudioProcessed ? 'Local Audio Processed' : 'Process Local Audio'}
         </button>
       </div>
 
