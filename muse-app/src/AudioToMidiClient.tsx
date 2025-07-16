@@ -39,7 +39,7 @@ const FASTAPI_BASE_URL = "http://localhost:8000";
 // For WebSocket, convert http:// to ws:// or https:// to wss://
 const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
 const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part
-const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/ws/audio_to_midi`;
+const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_midi`;
 
 const AudioToMidiClient: React.FC = () => {
   // State for UI and connection status

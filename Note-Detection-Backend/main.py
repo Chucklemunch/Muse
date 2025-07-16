@@ -2,7 +2,8 @@
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from basic_pitch.inference import predict, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
 import uvicorn
@@ -20,14 +21,43 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI application
 app = FastAPI()
 
-# Add CORS middleware
+origins = [
+    "http://localhost",
+    "http://localhost:5173", # NEW: Your React dev server port
+    "http://127.0.0.1:5173", # NEW: Your React dev server port
+    # Add other origins if your frontend is hosted elsewhere (e.g., your domain)
+]
+
+# # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server default
-    allow_credentials=True,
+    allow_origins=origins,  # React dev server default
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount the directory where your React app's build output is located.
+# Assuming your React build output is in a folder named 'frontend'
+# in the same directory as main.py.
+FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist"
+
+# Check if the frontend build directory exists
+if not os.path.isdir(FRONTEND_BUILD_DIR):
+    logger.error(f"Frontend build directory '{FRONTEND_BUILD_DIR}' not found. "
+                 "Please build your React app (`npm run build`) and place its output "
+                 f"in a folder named '{FRONTEND_BUILD_DIR}' next to main.py.")
+    # You might want to raise an exception or handle this more gracefully in production
+    # For development, we'll just log an error.
+
+# Mount the directory containing your static assets.
+# For Vite, this is typically 'dist/assets' if you want to serve them under /static
+# OR, if you want to serve them directly from the root of 'dist', you can mount 'dist' itself.
+# Let's assume assets are in 'dist/assets' and you want to serve them under '/assets'
+# The catch-all route will handle index.html from 'dist'
+app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR + "/assets"), name="assets")
+# If your Vite config outputs assets directly to 'dist' without an 'assets' subfolder,
+# you might use: app.mount("/static", StaticFiles(directory=FRONTEND_BUILD_DIR), name="static")
 
 # --- Load Basic-Pitch Model ---
 # It's crucial to load the model once when the application starts,
@@ -70,233 +100,10 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
 
     return midi_events
 
-# --- HTML Content for the Root Endpoint (Frontend for testing) ---
-# This serves a simple HTML page that includes JavaScript for WebSocket communication
-# and microphone access. In a production environment, this would typically be
-# served by a dedicated frontend server or a separate static files configuration.
-html_content = """
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>FastAPI Audio Stream to MIDI</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body { font-family: 'Inter', sans-serif; margin: 20px; background-color: #f0f4f8; color: #333; }
-            .container { max-width: 800px; margin: 0 auto; padding: 20px; background-color: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-            h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
-            p { text-align: center; margin-bottom: 30px; color: #555; }
-            .button-group { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
-            button {
-                padding: 12px 25px;
-                font-size: 16px;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                font-weight: bold;
-            }
-            button:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); }
-            button:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-
-            #connectWs, #startRecord { background-color: #28a745; color: white; }
-            #connectWs:hover, #startRecord:hover { background-color: #218838; }
-            #disconnectWs, #stopRecord { background-color: #dc3545; color: white; }
-            #disconnectWs:hover, #stopRecord:hover { background-color: #c82333; }
-            button:disabled { background-color: #cccccc; cursor: not-allowed; box-shadow: none; }
-
-            #messages {
-                border: 1px solid #ddd;
-                padding: 15px;
-                min-height: 200px;
-                max-height: 400px;
-                overflow-y: auto;
-                margin-top: 20px;
-                background-color: #e9ecef;
-                border-radius: 8px;
-                font-size: 14px;
-                line-height: 1.5;
-            }
-            .message-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #ccc; }
-            .message-entry:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-            .midi-event { color: #007bff; font-weight: bold; }
-            .error-message { color: #dc3545; font-weight: bold; }
-            .info-message { color: #28a745; }
-            .debug-message { color: #6c757d; font-style: italic; }
-
-            @media (max-width: 600px) {
-                .button-group { flex-direction: column; }
-                button { width: 100%; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>FastAPI Audio to MIDI with WebSockets</h1>
-            <p>Stream audio from your microphone to the backend, process with basic-pitch, and receive MIDI data back.</p>
-
-            <div class="button-group">
-                <button id="connectWs">Connect WebSocket</button>
-                <button id="disconnectWs" disabled>Disconnect WebSocket</button>
-                <button id="startRecord" disabled>Start Recording</button>
-                <button id="stopRecord" disabled>Stop Recording</button>
-            </div>
-
-            <h2>Messages:</h2>
-            <div id="messages"></div>
-        </div>
-
-        <script>
-            let ws;
-            let mediaRecorder;
-            let audioChunks = [];
-            const messagesDiv = document.getElementById('messages');
-            const connectWsBtn = document.getElementById('connectWs');
-            const disconnectWsBtn = document.getElementById('disconnectWs');
-            const startRecordBtn = document.getElementById('startRecord');
-            const stopRecordBtn = document.getElementById('stopRecord');
-
-            function logMessage(message, className = '') {
-                const p = document.createElement('p');
-                p.textContent = message;
-                p.className = 'message-entry ' + className;
-                messagesDiv.appendChild(p);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-
-            connectWsBtn.onclick = () => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    logMessage('WebSocket already connected.', 'info-message');
-                    return;
-                }
-                // Use wss:// for HTTPS, ws:// for HTTP
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                ws = new WebSocket(`${protocol}//${window.location.host}/audio_to_midi`);
-
-                ws.onopen = (event) => {
-                    logMessage('WebSocket connected!', 'info-message');
-                    connectWsBtn.disabled = true;
-                    disconnectWsBtn.disabled = false;
-                    startRecordBtn.disabled = false;
-                };
-
-                ws.onmessage = (event) => {
-                    try {
-                        const midiData = JSON.parse(event.data);
-                        logMessage(`Received MIDI: ${JSON.stringify(midiData)}`, 'midi-event');
-                        // In a real app, you'd feed this midiData to Magenta.js here
-                        // Example: If you have a Magenta.js model loaded:
-                        // playMidiDataWithMagenta(midiData);
-                    } catch (e) {
-                        logMessage(`Error parsing MIDI data: ${e.message}. Raw: ${event.data}`, 'error-message');
-                    }
-                };
-
-                ws.onclose = (event) => {
-                    logMessage(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason}`, 'error-message');
-                    connectWsBtn.disabled = false;
-                    disconnectWsBtn.disabled = true;
-                    startRecordBtn.disabled = true;
-                    stopRecordBtn.disabled = true;
-                };
-
-                ws.onerror = (error) => {
-                    logMessage('WebSocket Error: ' + error.message, 'error-message');
-                    console.error('WebSocket Error:', error);
-                };
-            };
-
-            disconnectWsBtn.onclick = () => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.close();
-                }
-            };
-
-            startRecordBtn.onclick = async () => {
-                if (!ws || ws.readyState !== WebSocket.OPEN) {
-                    logMessage('WebSocket not connected. Please connect first.', 'error-message');
-                    return;
-                }
-
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    
-                    // Determine the best MIME type for raw audio if possible
-                    let mimeType = 'audio/webm'; // Fallback
-                    const preferredMimeTypes = ['audio/webm;codecs=pcm', 'audio/wav'];
-                    for (const type of preferredMimeTypes) {
-                        if (MediaRecorder.isTypeSupported(type)) {
-                            mimeType = type;
-                            break;
-                        }
-                    }
-                    logMessage(`Using MIME type for recording: ${mimeType}`, 'debug-message');
-
-                    const options = { mimeType: mimeType, sampleRate: 22050 }; // basic-pitch resamples to 22050 Hz
-                    mediaRecorder = new MediaRecorder(stream, options);
-                    audioChunks = [];
-
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            audioChunks.push(event.data);
-                            if (ws && ws.readyState === WebSocket.OPEN) {
-                                // Send each chunk as it's available
-                                ws.send(event.data);
-                                logMessage(`Sent audio chunk (${event.data.byteLength} bytes)`, 'debug-message');
-                            } else {
-                                logMessage('WebSocket not open, cannot send audio chunk.', 'error-message');
-                            }
-                        }
-                    };
-
-                    mediaRecorder.onstop = () => {
-                        logMessage('Recording stopped.');
-                        // Send an "END_OF_AUDIO" signal to the backend to indicate no more audio
-                        if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send("END_OF_AUDIO");
-                            logMessage("Sent END_OF_AUDIO signal.", 'debug-message');
-                        }
-                        // Stop all tracks in the media stream
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-
-                    // Start recording and send data in 500ms chunks
-                    mediaRecorder.start(500); // Sends data every 500ms
-                    logMessage('Recording started...', 'info-message');
-                    startRecordBtn.disabled = true;
-                    stopRecordBtn.disabled = false;
-
-                } catch (err) {
-                    logMessage('Error accessing microphone: ' + err.message, 'error-message');
-                    console.error('Error accessing microphone:', err);
-                }
-            };
-
-            stopRecordBtn.onclick = () => {
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                }
-                startRecordBtn.disabled = false;
-                stopRecordBtn.disabled = true;
-            };
-        </script>
-    </body>
-</html>
-"""
-
 # --- FastAPI Endpoints ---
 
 # LOCAL TESTING AUDIO
 LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/1375__sleep__90_bpm_nylon2.wav'
-
-
-@app.get("/", response_class=HTMLResponse)
-async def get_root():
-    """
-    Serves the main HTML page for the application.
-    This acts as a simple frontend for testing the WebSocket functionality.
-    """
-    return html_content
 
 @app.websocket("/audio_to_midi")
 async def websocket_audio_to_midi(websocket: WebSocket):
@@ -474,12 +281,28 @@ async def process_local_audio():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process local audio: {e}"
         )
+    
+# This must be the LAST route defined in your FastAPI app.
+# It ensures that if no other API route matches, FastAPI will serve
+# your React app's index.html, allowing React Router to handle the path.
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    """
+    Serves the React app's index.html for all unmatched paths,
+    enabling client-side routing.
+    """
+    index_html_path = os.path.join(FRONTEND_BUILD_DIR, "index.html")
+    if os.path.exists(index_html_path):
+        logger.info(f"Serving React app's index.html for path: /{full_path}")
+        return FileResponse(index_html_path)
+    else:
+        logger.error(f"index.html not found at {index_html_path}. Cannot serve React app.")
+        raise HTTPException(status_code=404, detail="Frontend not found.")
 
 # --- Run the FastAPI application ---
-# This block allows you to run the file directly using `python main.py`
-# For production, you would typically use `uvicorn main:app` or a process manager.
+# This block ensures Uvicorn runs the FastAPI app when main.py is executed directly.
 if __name__ == "__main__":
-    # The `reload=True` flag is for development only. Do not use in production.
-    # It watches for code changes and restarts the server.
-    # `host="0.0.0.0"` makes the server accessible from outside localhost (e.g., other devices on your network).
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    import uvicorn # Ensure uvicorn is imported here
+    print("Attempting to run FastAPI server directly using uvicorn.run()...") # Added print statement
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    print("FastAPI server stopped.") # This will only print after server is shut down (e.g., Ctrl+C)
