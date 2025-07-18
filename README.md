@@ -22,3 +22,13 @@
 1. Chunk audio input into measures (or a few measures) and send it to the basic-pitch python backend for processing
 2. Send MIDI output from basic-pitch backend to frontend where Magenta models will process it on a web worker and output more MIDI notes that represent next notes
 3. Play MIDI notes through some sort of player to create a continuous jam loop of you play -> AI plays -> you play -> etc.
+
+### TODOs
+- Connect basic-pitch model between .ts frontend and FastAPI backend (DONE)
+- Add access to magenta models and ability to load different model based on checkpoint (DONE)
+- Convert output from basic-pitch to NoteSequence that can be fed into magenta model
+- Make magenta model output next notes and play through speaker: might want to upload sounds patches so it's not just a beep
+- Set up microphone connection and a count-in before the recording starts
+- Add tempo control and a metronome of sorts
+- Figure out how to chunk audio by number of beats/notes
+- Make UI cool and pretty
