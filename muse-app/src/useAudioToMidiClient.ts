@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 // Define types for MIDI data structure
-interface MidiNoteEvent {
+export interface MidiNoteEvent {
   type: 'note';
   start_time: number;
   end_time: number;
@@ -19,12 +19,14 @@ interface BackendError {
   error: string;
 }
 
-interface BackendMidiResponse {
+export interface BasicPitchMidiResponse {
   filename?: string; // For file upload endpoint
   source_file?: string; // For local file endpoint
   midi_data: MidiNoteEvent[];
   status?: string; // 'success', 'no_notes_detected'
 }
+
+let basicPitchResult: BasicPitchMidiResponse;
 
 
 // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
@@ -36,12 +38,11 @@ const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove p
 const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_midi`;
 const FASTAPI_WS_PROCESS_LOCAL_AUDIO = `${FASTAPI_BASE_URL}/process-local-audio`;
 
-const useAudioToMidiClient= () => {
+export const useAudioToMidiClient= () => {
   // State for UI and connection status
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const[isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Refs to hold mutable objects that don't trigger re-renders
   // Explicitly type the ref's current value (e.g., WebSocket | null)
@@ -51,10 +52,10 @@ const useAudioToMidiClient= () => {
 
   // -- Testing Audio Processing Using File Path in Backend --
   const processLocalAudio = useCallback(async () => {
-      const result: BackendMidiResponse = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => (response.json()));
-      console.log('process local audio response: ', result);
+      basicPitchResult = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => (response.json()));
+      console.log('process local audio response: ', basicPitchResult);
       setIsAudioProcessed(true);
-    }
+    }, []
   )
 
   // --- WebSocket Connection Logic ---
@@ -65,12 +66,11 @@ const useAudioToMidiClient= () => {
     ws.current.onopen = () => {
       setIsConnected(true);
       console.log('WebSocket Connected!', 'success');
-      setError(null);
     };
 
     ws.current.onmessage = (event: MessageEvent) => {
       try {
-        const data: BackendMidiResponse | BackendStatusMessage | BackendError = JSON.parse(event.data);
+        const data: BasicPitchMidiResponse | BackendStatusMessage | BackendError = JSON.parse(event.data);
 
         if ('midi_data' in data) { // Check if it's a MIDI response
           console.log(`Received MIDI data: ${JSON.stringify(data.midi_data.slice(0, 5))}...`, 'midi');
@@ -97,11 +97,10 @@ const useAudioToMidiClient= () => {
     };
 
     ws.current.onerror = (err: Event) => {
-      setError('WebSocket Error. Check console for details.');
       console.log(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error');
       console.error('WebSocket Error:', err);
     };
-  });
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
@@ -133,7 +132,6 @@ const useAudioToMidiClient= () => {
   // --- Microphone and Recording Logic ---
   const startRecording = async () => {
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-      setError('WebSocket is not connected. Please connect first.');
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
     }
@@ -172,65 +170,23 @@ const useAudioToMidiClient= () => {
       mediaRecorder.current.start(500);
       setIsRecording(true);
       console.log('Recording started...', 'success');
-      setError(null);
 
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`Error accessing microphone: ${errorMessage}`);
       console.log(`Error accessing microphone: ${errorMessage}`, 'error');
       console.error('Microphone access error:', err);
     }
   };
 
-  // --- Render UI ---
-  return (
-    <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '800px', margin: '20px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-      <h1 style={{ color: '#2c3e50', textAlign: 'center', marginBottom: '20px' }}>React Audio to MIDI Client</h1>
-      <p style={{ textAlign: 'center', marginBottom: '30px', color: '#555' }}>
-        Connects to FastAPI WebSocket, streams microphone audio, and displays received MIDI data.
-      </p>
-
-      {error && <div style={{ color: '#dc3545', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>Error: {error}</div>}
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
-        <button
-          onClick={connectWebSocket}
-          disabled={isConnected}
-          style={{ backgroundColor: isConnected ? '#cccccc' : '#28a745', color: 'white' }}
-        >
-          {isConnected ? 'Connected' : 'Connect WebSocket'}
-        </button>
-        <button
-          onClick={disconnectWebSocket}
-          disabled={!isConnected}
-          style={{ backgroundColor: !isConnected ? '#cccccc' : '#dc3545', color: 'white' }}
-        >
-          Disconnect WebSocket
-        </button>
-        <button
-          onClick={startRecording}
-          disabled={!isConnected || isRecording}
-          style={{ backgroundColor: (!isConnected || isRecording) ? '#cccccc' : '#28a745', color: 'white' }}
-        >
-          {isRecording ? 'Recording...' : 'Start Recording'}
-        </button>
-        <button
-          onClick={stopRecording}
-          disabled={!isRecording}
-          style={{ backgroundColor: !isRecording ? '#cccccc' : '#dc3545', color: 'white' }}
-        >
-          Stop Recording
-        </button>
-        <button
-          onClick={processLocalAudio}
-          disabled={isAudioProcessed}
-          style={{ backgroundColor: isAudioProcessed ? '#cccccc' : '#28a745', color: 'white' }}
-        >
-          {isAudioProcessed ? 'Local Audio Processed' : 'Process Local Audio'}
-        </button>
-      </div>
-    </div>
-  );
+    return {
+      isConnected,
+      isRecording,
+      isAudioProcessed,
+      basicPitchResult,
+      processLocalAudio,
+      connectWebSocket,
+      disconnectWebSocket,
+      startRecording,
+      stopRecording,
+  };
 };
-
-export default useAudioToMidiClient;
