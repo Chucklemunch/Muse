@@ -1,19 +1,12 @@
 import { MusicRNN } from "@magenta/music";
 import { useEffect, useRef, useState } from "react";
-import type { BasicPitchMidiResponse, MidiNoteEvent } from "./useAudioToMidiClient";
+import type { BasicPitchMidiResponse } from "./types";
 import { NoteSequence } from "@magenta/music";
 
-export interface MagentaMidiResponse {
-  filename?: string; // For file upload endpoint
-  source_file?: string; // For local file endpoint
-  midi_data: MidiNoteEvent[];
-  status?: string; // 'success', 'no_notes_detected'
-}
+
 
 export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult: BasicPitchMidiResponse) => {
     // Model Checkpoints for pre-trained MagentaJS Models
-    // const CHORD_PITCHES_IMPROV_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv";
-    // const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn"; 
      
     const musicModel = useRef<MusicRNN | null>(null);
 
@@ -22,8 +15,37 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult:
     const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
     const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
 
+
+    /* 
+    Converts output from Basic-Pitch model to a NoteSequence that
+    will be input into the Magenta models.
+
+    BasicPitchMidiResponse is in format
+    {
+      filename?: string; // For file upload endpoint
+      source_file?: string; // For local file endpoint
+      midi_data: MidiNoteEvent[];
+      status?: string; // 'success', 'no_notes_detected'
+    }
+
+    MidiNoteEvent is in format
+    {
+        type: 'note';
+        start_time: number;
+        end_time: number;
+        duration: number;
+        pitch: number;
+        velocity: number;
+    }
+    */ 
     const midiToNoteSequence = (result: BasicPitchMidiResponse) => {
         // TODO: Convert to tf note sequence
+        const midiData = result["midiData"];
+
+        for (const note of midiData) {
+            console.log(note);
+            
+        }
         console.log(result)
         const seq = new NoteSequence();
         return seq;
@@ -72,6 +94,7 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult:
     return({
         isModelLoading,
         isGeneratingNote,
+        selectedModel,
         setSelectedModel,
         predictAndPlay
     });

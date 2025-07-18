@@ -1,30 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-
-// Define types for MIDI data structure
-export interface MidiNoteEvent {
-  type: 'note';
-  start_time: number;
-  end_time: number;
-  duration: number;
-  pitch: number;
-  velocity: number;
-}
-
-interface BackendStatusMessage {
-  status: string;
-  message: string;
-}
-
-interface BackendError {
-  error: string;
-}
-
-export interface BasicPitchMidiResponse {
-  filename?: string; // For file upload endpoint
-  source_file?: string; // For local file endpoint
-  midi_data: MidiNoteEvent[];
-  status?: string; // 'success', 'no_notes_detected'
-}
+import type { BasicPitchMidiResponse, BackendError, BackendStatusMessage } from './types';
 
 let basicPitchResult: BasicPitchMidiResponse;
 

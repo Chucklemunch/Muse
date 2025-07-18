@@ -8,7 +8,7 @@ import { useMagentaIntegration } from "./useMagentaIntegration";
 const Muse: React.FC = () => {
 
 // Model Checkpoints for pre-trained MagentaJS Models
-// const CHORD_PITCHES_IMPROV_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv";
+const CHORD_PITCHES_IMPROV_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv";
 const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn"; 
 
   // Use the custom hooks
@@ -27,7 +27,8 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
   const { 
     isModelLoading, 
     isGeneratingNote,
-    // setSelectedModel,
+    selectedModel,
+    setSelectedModel,
     predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchResult);
 
   // --- Render UI ---
@@ -51,6 +52,19 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
           style={{ backgroundColor: !isConnected ? '#cccccc' : '#dc3545', color: 'white' }}
         >
           Disconnect WS
+        </button>
+        <button
+          onClick={() => {
+            if (selectedModel == BASIC_RNN) {
+              setSelectedModel(CHORD_PITCHES_IMPROV_RNN);
+            } else {
+              setSelectedModel(BASIC_RNN);
+            }
+          }}
+          disabled={isConnected || isModelLoading}
+          style={{ backgroundColor: (isConnected || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
+        >
+          {selectedModel === BASIC_RNN ? "BASIC_RNN " : "CHORD_PITCHES_IMPROV_RNN"}
         </button>
         <button
           onClick={startRecording}
