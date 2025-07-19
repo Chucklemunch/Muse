@@ -29,6 +29,7 @@
 - Convert output from basic-pitch to NoteSequence that can be fed into magenta model
 - Make magenta model output next notes and play through speaker: might want to upload sounds patches so it's not just a beep
 - Set up microphone connection and a count-in before the recording starts
+- Add time signature feature that changes how MIDI gets processed
 - Add tempo control and a metronome of sorts
 - Figure out how to chunk audio by number of beats/notes
 - Make UI cool and pretty
