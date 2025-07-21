@@ -1,3 +1,5 @@
+import type { INoteSequence } from "@magenta/music";
+
 // Define types for MIDI data structure
 export interface MidiNoteEvent {
   type: 'note';
@@ -17,16 +19,28 @@ export interface BackendError {
   error: string;
 }
 
-export interface BasicPitchMidiResponse {
+export interface BasicPitchNoteSequenceResponse {
   filename?: string; // For file upload endpoint
   source_file?: string; // For local file endpoint
-  midiData: MidiNoteEvent[];
+  note_sequence: INoteSequence;
   status?: string; // 'success', 'no_notes_detected'
 }
 export interface MagentaMidiResponse {
   filename?: string; // For file upload endpoint
   source_file?: string; // For local file endpoint
-  midi_data: MidiNoteEvent[];
+  midiData: MidiNoteEvent[];
   status?: string; // 'success', 'no_notes_detected'
 }
 
+export interface NoteSequence {
+    timeSignatures : [];
+    keySignatures : [];
+    tempos : [];
+    notes : [];
+    pitchBends : [];
+    controlChanges : [];
+    partInfos : [];
+    textAnnotations : [];
+    sectionAnnotations : [];
+    sectionGroups : [];
+}

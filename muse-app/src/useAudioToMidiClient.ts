@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { BasicPitchMidiResponse, BackendError, BackendStatusMessage } from './types';
+import type { BasicPitchNoteSequenceResponse } from './types';
 
-let basicPitchResult: BasicPitchMidiResponse;
+let basicPitchResult: BasicPitchNoteSequenceResponse;
 
 
 // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
@@ -45,24 +45,17 @@ export const useAudioToMidiClient= () => {
 
     ws.current.onmessage = (event: MessageEvent) => {
       try {
-        const data: BasicPitchMidiResponse | BackendStatusMessage | BackendError = JSON.parse(event.data);
+        const data: BasicPitchNoteSequenceResponse = JSON.parse(event.data);
 
-        if ('midi_data' in data) { // Check if it's a MIDI response
-          console.log(`Received MIDI data: ${JSON.stringify(data.midi_data.slice(0, 5))}...`, 'midi');
+        if ('note_sequence' in data) { // Check if it's a MIDI response
+          console.log(`Received MIDI data: ${data.note_sequence}`);
           // TODO: Integrate with Magenta.js here
-          // Example: YourMagentaPlayer.playMidiEvents(data.midi_data);
-        } else if ('status' in data) { // Check if it's a status message
-          console.log(data.message, 'warning');
-        } else if ('error' in data) { // Check if it's an error message
-          console.log(`Backend Error: ${data.error}`, 'error');
-        } else {
-          console.log(`Received: ${event.data}`, 'info');
         }
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.log(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
         console.error('WebSocket message parsing error:', e);
-      }
+      } 
     };
 
     ws.current.onclose = (event: CloseEvent) => {

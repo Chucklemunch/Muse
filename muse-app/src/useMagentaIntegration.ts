@@ -1,11 +1,9 @@
 import { MusicRNN } from "@magenta/music";
 import { useEffect, useRef, useState } from "react";
-import type { BasicPitchMidiResponse } from "./types";
-import { NoteSequence } from "@magenta/music";
+import type { BasicPitchNoteSequenceResponse } from "./types";
 
 
-
-export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult: BasicPitchMidiResponse) => {
+export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult: BasicPitchNoteSequenceResponse) => {
     // Model Checkpoints for pre-trained MagentaJS Models
      
     const musicModel = useRef<MusicRNN | null>(null);
@@ -15,41 +13,6 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult:
     const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
     const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
 
-
-    /* 
-    Converts output from Basic-Pitch model to a NoteSequence that
-    will be input into the Magenta models.
-
-    BasicPitchMidiResponse is in format
-    {
-      filename?: string; // For file upload endpoint
-      source_file?: string; // For local file endpoint
-      midi_data: MidiNoteEvent[];
-      status?: string; // 'success', 'no_notes_detected'
-    }
-
-    MidiNoteEvent is in format
-    {
-        type: 'note';
-        start_time: number;
-        end_time: number;
-        duration: number;
-        pitch: number;
-        velocity: number;
-    }
-    */ 
-    const midiToNoteSequence = (result: BasicPitchMidiResponse) => {
-        // TODO: Convert to tf note sequence
-        const midiData = result["midiData"];
-
-        for (const note of midiData) {
-            console.log(note);
-            
-        }
-        console.log(result)
-        const seq = new NoteSequence();
-        return seq;
-    };
 
     // Loads Model When Browser Loads
     useEffect (() => {
@@ -81,9 +44,8 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult:
     // --- Logic for processing and playing next notes
     const predictAndPlay = () => {
         if (musicModel.current != null) {
-            const noteSeq: NoteSequence = midiToNoteSequence(basicPitchResult);
             setIsGeneratingNotes(true);
-            const magentaResult = musicModel.current.continueSequence(noteSeq, 10);
+            const magentaResult = musicModel.current.continueSequence(basicPitchResult, 10);
             return magentaResult;
         } else {
             console.log('error in predictAndPlay');

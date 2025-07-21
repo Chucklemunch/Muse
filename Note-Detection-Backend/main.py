@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from basic_pitch.inference import predict, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
+from note_seq.midi_io import midi_to_note_sequence
+from google.protobuf.json_format import MessageToJson
 import uvicorn
 import os
 import asyncio
@@ -64,6 +66,7 @@ except Exception as e:
     logger.error(f"Failed to load Basic-Pitch model: {e}")
     logger.warning("Basic-Pitch functionality will be unavailable due to model loading error.")
 
+
 # --- Helper function to convert pretty_midi.PrettyMIDI to a JSON-serializable format ---
 def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
     """
@@ -74,24 +77,27 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
     if pretty_midi_obj is None:
         logger.warning("midi_to_json received None for pretty_midi_obj. Returning empty list.")
         return []
-
-    midi_events = []
-    # pretty_midi organizes notes by instrument
-    for instrument in pretty_midi_obj.instruments:
-        for note in instrument.notes:
-            midi_events.append({
-                "type": "note", # Or "note_on" and "note_off" if you prefer
-                "start_time": float(note.start),
-                "end_time": float(note.end),
-                "duration": float(note.end - note.start),
-                "pitch": int(note.pitch), # MIDI pitch number (0-127)
-                "velocity": int(note.velocity) # MIDI velocity (0-127)
-            })
     
-    # Sort events by start time for chronological playback on frontend
-    midi_events.sort(key=lambda x: x['start_time'])
+    note_seq = midi_to_note_sequence(pretty_midi_obj)
+    note_seq_json = MessageToJson(note_seq)
+    print(note_seq_json)
+    # midi_events = []
+    # # pretty_midi organizes notes by instrument
+    # for instrument in pretty_midi_obj.instruments:
+    #     for note in instrument.notes:
+    #         midi_events.append({
+    #             "type": "note", # Or "note_on" and "note_off" if you prefer
+    #             "start_time": float(note.start),
+    #             "end_time": float(note.end),
+    #             "duration": float(note.end - note.start),
+    #             "pitch": int(note.pitch), # MIDI pitch number (0-127)
+    #             "velocity": int(note.velocity) # MIDI velocity (0-127)
+    #         })
+    
+    # # Sort events by start time for chronological playback on frontend
+    # midi_events.sort(key=lambda x: x['start_time'])
 
-    return midi_events
+    return note_seq_json
 
 # --- FastAPI Endpoints ---
 
@@ -176,11 +182,12 @@ async def websocket_audio_to_midi(websocket: WebSocket):
                                 return []
                             
                             # Convert pretty_midi.PrettyMIDI to JSON-serializable format
-                            midi_json = midi_to_json(midi_file)
+                            note_seq_json = midi_to_note_sequence(midi_file)
                             
-                            if midi_json: # Only send if there's actual MIDI data
-                                await websocket.send_json(midi_json)
-                                logger.info(f"Sent {len(midi_json)} MIDI events to frontend.")
+                            
+                            if note_seq_json: # Only send if there's actual MIDI data
+                                await websocket.send_json(note_seq_json)
+                                logger.info(f"Sent {len(note_seq_json)} MIDI events to frontend.")
                             else:
                                 logger.debug("No MIDI events detected in this segment.")
 
