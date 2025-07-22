@@ -80,22 +80,6 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
     
     note_seq = midi_to_note_sequence(pretty_midi_obj)
     note_seq_json = MessageToJson(note_seq)
-    print(note_seq_json)
-    # midi_events = []
-    # # pretty_midi organizes notes by instrument
-    # for instrument in pretty_midi_obj.instruments:
-    #     for note in instrument.notes:
-    #         midi_events.append({
-    #             "type": "note", # Or "note_on" and "note_off" if you prefer
-    #             "start_time": float(note.start),
-    #             "end_time": float(note.end),
-    #             "duration": float(note.end - note.start),
-    #             "pitch": int(note.pitch), # MIDI pitch number (0-127)
-    #             "velocity": int(note.velocity) # MIDI velocity (0-127)
-    #         })
-    
-    # # Sort events by start time for chronological playback on frontend
-    # midi_events.sort(key=lambda x: x['start_time'])
 
     return note_seq_json
 
@@ -104,8 +88,8 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
 # LOCAL TESTING AUDIO
 LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/1375__sleep__90_bpm_nylon2.wav'
 
-@app.websocket("/audio_to_midi")
-async def websocket_audio_to_midi(websocket: WebSocket):
+@app.websocket("/audio_to_note_seq")
+async def websocket_audio_to_note_seq(websocket: WebSocket):
     """
     WebSocket endpoint for receiving audio streams, processing them with basic-pitch,
     and sending back MIDI data.
@@ -182,7 +166,8 @@ async def websocket_audio_to_midi(websocket: WebSocket):
                                 return []
                             
                             # Convert pretty_midi.PrettyMIDI to JSON-serializable format
-                            note_seq_json = midi_to_note_sequence(midi_file)
+                            note_seq = midi_to_note_sequence(midi_file)
+                            note_seq_json = MessageToJson(note_seq)
                             
                             
                             if note_seq_json: # Only send if there's actual MIDI data
