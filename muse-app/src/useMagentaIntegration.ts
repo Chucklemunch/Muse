@@ -1,9 +1,8 @@
-import { MusicRNN } from "@magenta/music";
+import { MusicRNN, NoteSequence } from "@magenta/music";
 import { useEffect, useRef, useState } from "react";
-import type { BasicPitchNoteSequenceResponse } from "./types";
 
 
-export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult: BasicPitchNoteSequenceResponse) => {
+export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: NoteSequence) => {
     // Model Checkpoints for pre-trained MagentaJS Models
      
     const musicModel = useRef<MusicRNN | null>(null);
@@ -45,7 +44,9 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchResult:
     const predictAndPlay = () => {
         if (musicModel.current != null) {
             setIsGeneratingNotes(true);
-            const magentaResult = musicModel.current.continueSequence(basicPitchResult, 10);
+            console.log(`basicPitchSeq : ${basicPitchSeq}`)
+            const magentaResult = musicModel.current.continueSequence(basicPitchSeq, 10);
+            console.log(`magenta result: ${magentaResult}`)
             return magentaResult;
         } else {
             console.log('error in predictAndPlay');

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { NoteSequence } from '@magenta/music';
 import type { BasicPitchNoteSequenceResponse } from './types';
-
-let basicPitchResult: BasicPitchNoteSequenceResponse;
 
 
 // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
@@ -10,10 +9,13 @@ const FASTAPI_BASE_URL = "http://localhost:8000";
 // For WebSocket, convert http:// to ws:// or https:// to wss://
 const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
 const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part
-const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_midi`;
+const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_note_seq`;
 const FASTAPI_WS_PROCESS_LOCAL_AUDIO = `${FASTAPI_BASE_URL}/process-local-audio`;
 
 export const useAudioToMidiClient= () => {
+  // Defining variable for the NoteSequence that will get passed to the Magenta model
+  const basicPitchResult = useRef<NoteSequence>(null);
+
   // State for UI and connection status
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -27,8 +29,9 @@ export const useAudioToMidiClient= () => {
 
   // -- Testing Audio Processing Using File Path in Backend --
   const processLocalAudio = useCallback(async () => {
-      basicPitchResult = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => (response.json()));
-      console.log('process local audio response: ', basicPitchResult);
+      const basicPitchResultJson = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => response.json());
+      basicPitchResult.current = basicPitchResultJson as NoteSequence;
+      console.log('process local audio response: ', basicPitchResult.current);
       setIsAudioProcessed(true);
     }, []
   )

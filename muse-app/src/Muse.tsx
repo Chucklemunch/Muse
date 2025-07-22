@@ -1,8 +1,9 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
 import React from 'react';
-import { useAudioToMidiClient } from "./useAudioToMidiClient";
+import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
+import { NoteSequence } from '@magenta/music';
 // import { start } from 'tone';
 
 const Muse: React.FC = () => {
@@ -23,13 +24,15 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
       startRecording,
       stopRecording,
   } = useAudioToMidiClient();
-    
+
+  const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
+
   const { 
     isModelLoading, 
     isGeneratingNote,
     selectedModel,
     setSelectedModel,
-    predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchResult);
+    predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchSeq);
 
   // --- Render UI ---
   return (
