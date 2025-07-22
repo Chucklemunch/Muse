@@ -24,8 +24,8 @@
 3. Play MIDI notes through some sort of player to create a continuous jam loop of you play -> AI plays -> you play -> etc.
 
 ### TODOs
-- Connect basic-pitch model between .ts frontend and FastAPI backend (DONE)
-- Add access to magenta models and ability to load different model based on checkpoint (DONE)
+**- Connect basic-pitch model between .ts frontend and FastAPI backend (DONE)
+- Add access to magenta models and ability to load different model based on checkpoint (DONE)**
 - Convert output from basic-pitch to NoteSequence that can be fed into magenta model
 - Make magenta model output next notes and play through speaker: might want to upload sounds patches so it's not just a beep
 - Set up microphone connection and a count-in before the recording starts
