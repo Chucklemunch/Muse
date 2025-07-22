@@ -1,5 +1,13 @@
 import type { NoteSequence } from "@magenta/music";
 
+export interface Note {
+      pitch: number,
+      velocity: number,
+      startTime: number,
+      endTime: number
+      program?: number
+}
+
 // Define types for MIDI data structure
 export interface MidiNoteEvent {
   type: 'note';

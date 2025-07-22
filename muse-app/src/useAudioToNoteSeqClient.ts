@@ -30,8 +30,8 @@ export const useAudioToMidiClient= () => {
   // -- Testing Audio Processing Using File Path in Backend --
   const processLocalAudio = useCallback(async () => {
       const basicPitchResultJson = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => response.json());
-      basicPitchResult.current = basicPitchResultJson as NoteSequence;
-      console.log('process local audio response: ', basicPitchResult.current);
+      console.log("basicPitchResultJson: ", basicPitchResultJson)
+      basicPitchResult.current = JSON.parse(basicPitchResultJson['midi_data']) as NoteSequence;
       setIsAudioProcessed(true);
     }, []
   )

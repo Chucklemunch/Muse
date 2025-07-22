@@ -81,6 +81,7 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
     note_seq = midi_to_note_sequence(pretty_midi_obj)
     note_seq_json = MessageToJson(note_seq)
 
+    # return note_seq_json
     return note_seq_json
 
 # --- FastAPI Endpoints ---

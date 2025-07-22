@@ -1,4 +1,5 @@
 import { MusicRNN, NoteSequence } from "@magenta/music";
+import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 
 
@@ -42,14 +43,27 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
 
     // --- Logic for processing and playing next notes
     const predictAndPlay = () => {
+        if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
+            console.log("basicPitchSeq is empty or undefined")
+        }
         if (musicModel.current != null) {
-            setIsGeneratingNotes(true);
-            console.log(`basicPitchSeq : ${basicPitchSeq}`)
-            const magentaResult = musicModel.current.continueSequence(basicPitchSeq, 10);
-            console.log(`magenta result: ${magentaResult}`)
-            return magentaResult;
+            try {
+                setIsGeneratingNotes(true);
+                // Quantize NoteSequence
+                const quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 8);
+
+                // Call to helper function that makes all notes be within the range accepted by Magenta models
+                console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
+                const magentaResult = musicModel.current.continueSequence(quantNoteSeq, 4);
+                console.log("magenta result: ", magentaResult)
+                setIsGeneratingNotes(false)
+                return magentaResult;
+            }
+            catch (err) {
+                console.error("Quantization or continuation error: ", err)
+            }
         } else {
-            console.log('error in predictAndPlay');
+            console.log('musicModel is not initialized');
         }
 
     }

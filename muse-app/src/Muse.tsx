@@ -26,6 +26,7 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
   } = useAudioToMidiClient();
 
   const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
+  
 
   const { 
     isModelLoading, 
@@ -86,7 +87,7 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
         <button
           onClick={predictAndPlay}
           disabled={isGeneratingNote}
-          style={{ backgroundColor: !isRecording ? '#cccccc' : '#dc3545', color: 'white' }}
+          style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
         >
           Predict and Play
         </button>
