@@ -1,4 +1,5 @@
 import { MusicRNN, NoteSequence } from "@magenta/music";
+import { transposeToValidPitchRange } from "./utils";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 
@@ -49,13 +50,14 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
         if (musicModel.current != null) {
             try {
                 setIsGeneratingNotes(true);
-                // Quantize NoteSequence
-                const quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 8);
 
-                // Call to helper function that makes all notes be within the range accepted by Magenta models
+                // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
+                const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8));
+
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
                 const magentaResult = musicModel.current.continueSequence(quantNoteSeq, 4);
                 console.log("magenta result: ", magentaResult)
+                
                 setIsGeneratingNotes(false)
                 return magentaResult;
             }
