@@ -11,6 +11,7 @@ const Muse: React.FC = () => {
 // Model Checkpoints for pre-trained MagentaJS Models
 const CHORD_PITCHES_IMPROV_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv";
 const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn"; 
+const MELODY_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn"; 
 
   // Use the custom hooks
   const {
@@ -33,7 +34,8 @@ const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mus
     isGeneratingNote,
     selectedModel,
     setSelectedModel,
-    predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchSeq);
+    predictAndPlay,} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
+    // predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchSeq);
 
   // --- Render UI ---
   return (

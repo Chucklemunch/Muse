@@ -4,6 +4,13 @@ import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 
 
+/*
+The magenta model makes predictions based on probabilities.
+The number of classes is NUM_SPECIAL_MELODY_EVENTS + midi-note-range
+The valid note range depends on the model being used
+Class 0 = no event
+Class 1 = note-off event
+*/
 export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: NoteSequence) => {
     // Model Checkpoints for pre-trained MagentaJS Models
      
@@ -64,7 +71,7 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
                 console.log("quantNoteSeq: ", quantNoteSeq)
                 // const magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.3);
-                const magentaResult = await musicModel.current.continueSequenceAndReturnProbabilities(quantNoteSeq, 256, 0.3);
+                const magentaResult = await musicModel.current.continueSequenceAndReturnProbabilities(quantNoteSeq, 256, 0.9);
                 console.log("magenta result: ", magentaResult)
                 
                 setIsGeneratingNotes(false)
