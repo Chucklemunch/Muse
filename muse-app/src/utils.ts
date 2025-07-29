@@ -2,11 +2,11 @@ import type { INoteSequence } from "@magenta/music";
 
 export function transposeToValidPitchRange(ns: INoteSequence): INoteSequence {
     const MIN_PITCH = 48; 
-    const MAX_PITCH = 84;
+    const MAX_PITCH = 83;
 
     if (!ns.notes || ns.notes.length === 0) {
-    console.warn('No notes to transpose.');
-    return ns;
+        console.warn('No notes to transpose.');
+        return ns;
     }
 
     const transposedNotes = ns.notes.map(note => {

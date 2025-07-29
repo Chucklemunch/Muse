@@ -2,6 +2,10 @@
 - What: A web app that listens to the user’s playing (start with piano, figure out guitar later)(via mic) and shows real-time visual feedback on scales, keys, and suggested note transitions for improvisation.
 - Unique angle: Uses ML to analyze note sequences and suggests "next-tone probabilities" like predictive text, but for solos.
 
+### Environments
+- FastAPI backend is run in a miniconda environment that uses python 3.10
+- Python 3.10 was necessary for compatability with some Magenta and Tensorflow dependencies
+
 ### Core Features
 - Live audio input
 - Converts audio to MIDI

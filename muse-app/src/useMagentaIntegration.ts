@@ -36,14 +36,21 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
                 console.log('Magenta model loaded!')
                 setIsModelLoading(false);                
             }
+            
+            // Outputs model config
+            await fetch(`${selectedModel}/config.json`)
+                .then((response) => response.json())
+                .then((spec) => {
+                    console.log('Fetched config.json for model: ', spec);
+            });
         }
 
         loadModel();
-
     }, [selectedModel]);
 
     // --- Logic for processing and playing next notes
-    const predictAndPlay = () => {
+    // --- asynchronous function for getting results from the magenta model
+    const predictAndPlay = async () => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined")
         }
@@ -55,7 +62,9 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
                 const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8));
 
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
-                const magentaResult = musicModel.current.continueSequence(quantNoteSeq, 4);
+                console.log("quantNoteSeq: ", quantNoteSeq)
+                // const magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.3);
+                const magentaResult = await musicModel.current.continueSequenceAndReturnProbabilities(quantNoteSeq, 256, 0.3);
                 console.log("magenta result: ", magentaResult)
                 
                 setIsGeneratingNotes(false)
