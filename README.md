@@ -23,6 +23,7 @@
 ### How am I  going to convert audio to MIDI to audio?
 - Audio to Midi: Spotify Basic Pitch OR Magenta. Gemini suggests using Spotify basic-pitch because it is more specifically designed for converting instruments to MIDI
 - Midi to Audio: Magenta models
+- [Magenta Model Checkpoints](https://github.com/magenta/magenta-js/blob/master/music/checkpoints/README.md#table)
 1. Chunk audio input into measures (or a few measures) and send it to the basic-pitch python backend for processing
 2. Send MIDI output from basic-pitch backend to frontend where Magenta models will process it on a web worker and output more MIDI notes that represent next notes
 3. Play MIDI notes through some sort of player to create a continuous jam loop of you play -> AI plays -> you play -> etc.
