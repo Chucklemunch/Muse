@@ -2,6 +2,7 @@ import { MusicRNN, NoteSequence } from "@magenta/music";
 import { type ModelKey, CONSTANTS, transposeToValidPitchRange } from "./utils";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
+import { Sampler } from "tone";
 
 
 /*
@@ -11,7 +12,7 @@ The valid note range depends on the model being used
 Class 0 = no event
 Class 1 = note-off event
 */
-export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq: NoteSequence) => {
+export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq: NoteSequence) {
     // Model Checkpoints for pre-trained MagentaJS Models
      
     const musicModel = useRef<MusicRNN | null>(null);
@@ -60,7 +61,7 @@ export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq:
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictAndPlay = async () => {
+    const predictNotes = async () => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined")
         }
@@ -73,9 +74,9 @@ export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq:
 
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
                 console.log("quantNoteSeq: ", quantNoteSeq)
-                // const magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.3);
-                const magentaResult = await musicModel.current.continueSequenceAndReturnProbabilities(quantNoteSeq, 256, 0.9);
+                const magentaResult : NoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 256, 0.9) as NoteSequence;
                 console.log("magenta result: ", magentaResult)
+                console.log("magenta result sequence type: ", typeof(magentaResult))
                 
                 setIsGeneratingNotes(false)
                 return magentaResult;
@@ -89,11 +90,18 @@ export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq:
 
     }
 
+    // Uses ToneJS to play notes returned from Magenta model
+    const playNotes = () => {
+        const notes :  NoteSequence = predictNotes()
+        const sampler = new Sampler();
+
+    }
+
     return({
         isModelLoading,
         isGeneratingNote,
         selectedModel,
         setSelectedModel,
-        predictAndPlay
+        predictNotes
     });
 }

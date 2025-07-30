@@ -23,17 +23,17 @@ export const CONSTANTS = {
 // Defines valid model keys to be just the keys within the CONSTANTS object
 export type ModelKey = keyof typeof CONSTANTS;
 
-export function transposeToValidPitchRange(ns: INoteSequence, selectedModel: ModelKey): INoteSequence {
+export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel: ModelKey): INoteSequence {
 
     const MIN_PITCH = CONSTANTS[selectedModel].MIN_PITCH; 
     const MAX_PITCH = 127;
 
-    if (!ns.notes || ns.notes.length === 0) {
+    if (!noteSeq.notes || noteSeq.notes.length === 0) {
         console.warn('No notes to transpose.');
-        return ns;
+        return noteSeq;
     }
 
-    const transposedNotes = ns.notes.map(note => {
+    const transposedNotes = noteSeq.notes.map(note => {
         let pitch = note.pitch ?? 60; // default to middle C if missing
 
         while (pitch < MIN_PITCH) pitch += 12;
@@ -48,7 +48,13 @@ export function transposeToValidPitchRange(ns: INoteSequence, selectedModel: Mod
     });
 
     return {
-        ...ns,
+        ...noteSeq,
         notes: transposedNotes,
     };
+}
+
+export function quantStepToSec(noteSeq: INoteSequence) {
+    // TODO 
+
+    return
 }

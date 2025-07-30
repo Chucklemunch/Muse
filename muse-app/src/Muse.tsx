@@ -35,7 +35,7 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
     isGeneratingNote,
     selectedModel,
     setSelectedModel,
-    predictAndPlay,} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
+    predictNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
     // predictAndPlay,} = useMagentaIntegration(BASIC_RNN_URL, basicPitchSeq);
 
   // --- Render UI ---
@@ -91,7 +91,7 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
           Stop
         </button>
         <button
-          onClick={predictAndPlay}
+          onClick={predictNotes}
           disabled={isGeneratingNote}
           style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
         >
