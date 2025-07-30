@@ -1,9 +1,8 @@
-import { MusicRNN, NoteSequence } from "@magenta/music";
-import { type ModelKey, CONSTANTS, transposeToValidPitchRange } from "./utils";
+import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
+import { type ModelKey, CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { Sampler } from "tone";
-
 
 /*
 The magenta model makes predictions based on probabilities.
@@ -72,13 +71,13 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8), selectedModel);
 
-                console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
-                console.log("quantNoteSeq: ", quantNoteSeq)
-                const magentaResult : NoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 256, 0.9) as NoteSequence;
-                console.log("magenta result: ", magentaResult)
-                console.log("magenta result sequence type: ", typeof(magentaResult))
+                console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps);
+                console.log("quantNoteSeq: ", quantNoteSeq);
+                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 256, 0.9) as INoteSequence;
+                console.log("magenta result: ", magentaResult);
+                console.log("magenta result sequence type: ", typeof(magentaResult));
                 
-                setIsGeneratingNotes(false)
+                setIsGeneratingNotes(false);
                 return magentaResult;
             }
             catch (err) {
@@ -87,14 +86,37 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
         } else {
             console.log('musicModel is not initialized');
         }
-
+            return new NoteSequence()
     }
 
     // Uses ToneJS to play notes returned from Magenta model
-    const playNotes = () => {
-        const notes :  NoteSequence = predictNotes()
-        const sampler = new Sampler();
+    const playNotes = async () => {
+        const notes :  INoteSequence = await predictNotes();
+        
+        // Make sure note sequence isn't zero length
+        if (notes.notes && notes.notes.length === 0) {
+            console.log("playNotes: note sequence had zero length");
+            return;
+        } else{
+            const toneJSNotes = magentaToToneSeq(notes, 120);
+            console.log(toneJSNotes);
+            const sampler = new Sampler({
+                urls: {
+                    A1: "A1.mp3",
+                    A2: "A2.mp3",
+                },
+                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                onload: () => {
+                    for (let i = 0; i < toneJSNotes.notes.length; i++) {
+                        sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], toneJSNotes.time[i]);
+                    }
+                },
+            }).toDestination();
 
+
+            
+            
+        }
     }
 
     return({
@@ -102,6 +124,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
         isGeneratingNote,
         selectedModel,
         setSelectedModel,
-        predictNotes
+        predictNotes,
+        playNotes
     });
 }

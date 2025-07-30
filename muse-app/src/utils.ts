@@ -1,4 +1,5 @@
 import type { INoteSequence } from "@magenta/music";
+import type { Time } from "tone/build/esm/core/type/Units";
 
 export const CONSTANTS = {
     "BASIC_RNN" : {
@@ -53,8 +54,50 @@ export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel
     };
 }
 
-export function quantStepToSec(noteSeq: INoteSequence) {
-    // TODO 
+/**
+ * Converts magenta model output into array of notes that can be played
+ * by a ToneJS instrument
+ * 
+ * ToneJS plays notes via triggerAttackRelease(notes, duration, time?, velocity?),
+ * function must return object with information about note pitch, duration, etc.
+ * 
+ * @param noteSeq note sequence generated from Magenta model
+ * @returns object with notes that can be played by a ToneJS instrument
+ */
+export function magentaToToneSeq(noteSeq: INoteSequence, bpm: number) {
+    const notes = {
+        notes : [] as number[],
+        duration : [] as number[],
+        time : [] as Time []
+    };
+    if (noteSeq.notes && noteSeq.quantizationInfo?.stepsPerQuarter) {
+        const quantizedStepToSeconds = (step: number, stepsPerQuarter: number, bpm: number) => {
+            const quartersPerMinute = bpm;
+            const secondsPerQuarter = 60 / quartersPerMinute;
+            return (step / stepsPerQuarter) * secondsPerQuarter;
+        }
 
-    return
+        const stepsPerQuarter = noteSeq.quantizationInfo.stepsPerQuarter;
+        
+        // Convert NoteSequence into object that can be used by ToneJS
+
+        for (const note of noteSeq.notes) {
+            if (note.quantizedStartStep != null && note.quantizedEndStep != null && note.pitch!= null ) {
+                const pitch = note.pitch;
+                const startTime = quantizedStepToSeconds(note.quantizedStartStep, stepsPerQuarter, bpm);
+                const endTime = quantizedStepToSeconds(note.quantizedEndStep, stepsPerQuarter, bpm);
+                const duration = endTime - startTime;
+
+                // Add information for each note to notes object
+                notes.notes.push(pitch);  
+                notes.duration.push(duration);
+                notes.time.push(startTime);  
+
+            }
+        } 
+    } else {
+        console.log("magentaToToneSeq error: coundn't convert notes");
+    }
+
+    return notes;
 }

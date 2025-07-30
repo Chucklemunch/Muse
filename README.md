@@ -19,6 +19,7 @@
 - [MagentaJS](https://github.com/magenta/magenta-js) for MIDI to music production in frontend after backen processing with basic-pitch
 - [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) for processing incoming audio to not block main UI thread
 - [FastAPI](https://fastapi.tiangolo.com/) for Python backend
+- [ToneJS](https://tonejs.github.io/docs/15.1.22/index.html) for playback
 
 ### How am I  going to convert audio to MIDI to audio?
 - Audio to Midi: Spotify Basic Pitch OR Magenta. Gemini suggests using Spotify basic-pitch because it is more specifically designed for converting instruments to MIDI
@@ -33,6 +34,7 @@
 - Add access to magenta models and ability to load different model based on checkpoint (DONE)
 - Convert output from basic-pitch to NoteSequence that can be fed into magenta model: Need to transpose out of range notes (DONE)
 - **Make magenta model output next notes and play through speaker**
+- **Create audio player that uses ToneJS's Sampler to use piano (or other) sounds to play output from Magenta model**
 - Set up microphone connection and a count-in before the recording starts
 - Add time signature feature that changes how MIDI gets processed
 - Add tempo control and a metronome of sorts
