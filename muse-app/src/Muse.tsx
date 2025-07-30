@@ -4,14 +4,15 @@ import React from 'react';
 import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
+import { type ModelKey } from './utils';
 // import { start } from 'tone';
 
 const Muse: React.FC = () => {
 
 // Model Checkpoints for pre-trained MagentaJS Models
-const CHORD_PITCHES_IMPROV_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv";
-const BASIC_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn"; 
-const MELODY_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn"; 
+const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
+const BASIC_RNN : ModelKey = "BASIC_RNN"; 
+const MELODY_RNN : ModelKey = "MELODY_RNN";
 
   // Use the custom hooks
   const {
@@ -35,7 +36,7 @@ const MELODY_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mu
     selectedModel,
     setSelectedModel,
     predictAndPlay,} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
-    // predictAndPlay,} = useMagentaIntegration(BASIC_RNN, basicPitchSeq);
+    // predictAndPlay,} = useMagentaIntegration(BASIC_RNN_URL, basicPitchSeq);
 
   // --- Render UI ---
   return (
@@ -60,17 +61,20 @@ const MELODY_RNN = "https://storage.googleapis.com/magentadata/js/checkpoints/mu
           Disconnect WS
         </button>
         <button
-          onClick={() => {
-            if (selectedModel == BASIC_RNN) {
-              setSelectedModel(CHORD_PITCHES_IMPROV_RNN);
-            } else {
-              setSelectedModel(BASIC_RNN);
-            }
-          }}
+          onClick={() => 
+            selectedModel === BASIC_RNN ? setSelectedModel(MELODY_RNN) 
+            : selectedModel === MELODY_RNN ? setSelectedModel(CHORD_PITCHES_IMPROV_RNN) 
+            : setSelectedModel(BASIC_RNN)
+          }
           disabled={isConnected || isModelLoading}
           style={{ backgroundColor: (isConnected || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
         >
-          {selectedModel === BASIC_RNN ? "BASIC_RNN " : "CHORD_PITCHES_IMPROV_RNN"}
+          {
+            (selectedModel === BASIC_RNN) ? "BASIC_RNN" : 
+            (selectedModel === MELODY_RNN) ? "MELODY_RNN" : 
+            (selectedModel === CHORD_PITCHES_IMPROV_RNN) ? "CHORD_PITCHES_IMPROV_RNN" : 
+            "NO MODEL SELECTED"
+          }
         </button>
         <button
           onClick={startRecording}

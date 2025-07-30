@@ -1,5 +1,5 @@
 import { MusicRNN, NoteSequence } from "@magenta/music";
-import { transposeToValidPitchRange } from "./utils";
+import { type ModelKey, CONSTANTS, transposeToValidPitchRange } from "./utils";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 
@@ -11,19 +11,22 @@ The valid note range depends on the model being used
 Class 0 = no event
 Class 1 = note-off event
 */
-export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: NoteSequence) => {
+export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq: NoteSequence) => {
     // Model Checkpoints for pre-trained MagentaJS Models
      
     const musicModel = useRef<MusicRNN | null>(null);
 
     // Managing Model State
-    const [selectedModel, setSelectedModel] = useState<string>(modelCheckpoint);
+    const [selectedModel, setSelectedModel] = useState<ModelKey>(modelCheckpointURL === CONSTANTS.MELODY_RNN.URL ? "MELODY_RNN" : 
+                                                                modelCheckpointURL === CONSTANTS.CHORD_PITCHES_IMPROV_RNN.URL ? "CHORD_PITCHES_IMPROV_RNN" : "BASIC_RNN");
     const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
     const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
 
 
     // Loads Model When Browser Loads
     useEffect (() => {
+        const modelURL = CONSTANTS[selectedModel].URL
+
         const loadModel = async () => {
             setIsModelLoading(true);
             if (isModelLoading){
@@ -31,7 +34,7 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
             }
             try {
                 // Get model
-                const rnn = new MusicRNN(selectedModel);
+                const rnn = new MusicRNN(modelURL);
                 await rnn.initialize();
                 musicModel.current = rnn;
             } catch (e: unknown) {
@@ -45,7 +48,7 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
             }
             
             // Outputs model config
-            await fetch(`${selectedModel}/config.json`)
+            await fetch(`${modelURL}/config.json`)
                 .then((response) => response.json())
                 .then((spec) => {
                     console.log('Fetched config.json for model: ', spec);
@@ -66,7 +69,7 @@ export const useMagentaIntegration = (modelCheckpoint: string, basicPitchSeq: No
                 setIsGeneratingNotes(true);
 
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
-                const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8));
+                const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8), selectedModel);
 
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps)
                 console.log("quantNoteSeq: ", quantNoteSeq)
