@@ -12,7 +12,7 @@ const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove p
 const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_note_seq`;
 const FASTAPI_WS_PROCESS_LOCAL_AUDIO = `${FASTAPI_BASE_URL}/process-local-audio`;
 
-export const useAudioToMidiClient= () => {
+export const useAudioToMidiClient= (tempo: number) => {
   // Defining variable for the NoteSequence that will get passed to the Magenta model
   const basicPitchResult = useRef<NoteSequence>(null);
 
@@ -29,11 +29,21 @@ export const useAudioToMidiClient= () => {
 
   // -- Testing Audio Processing Using File Path in Backend --
   const processLocalAudio = useCallback(async () => {
-      const basicPitchResultJson = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO).then((response) => response.json());
+      console.log('tempo: ', tempo)
+      const basicPitchResultJson = await fetch(FASTAPI_WS_PROCESS_LOCAL_AUDIO, 
+        {
+          method : "POST",
+          headers : {
+            "Content-type" : "application/json"
+          },
+          body : JSON.stringify({ tempo })
+        }
+
+      ).then((response) => response.json());
       console.log("basicPitchResultJson: ", basicPitchResultJson)
       basicPitchResult.current = JSON.parse(basicPitchResultJson['midi_data']) as NoteSequence;
       setIsAudioProcessed(true);
-    }, []
+    }, [tempo]
   )
 
   // --- WebSocket Connection Logic ---

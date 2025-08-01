@@ -1,6 +1,6 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
@@ -14,6 +14,8 @@ const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
 const BASIC_RNN : ModelKey = "BASIC_RNN"; 
 const MELODY_RNN : ModelKey = "MELODY_RNN";
 
+const [tempo, setTempo] = useState<number>(120); // Default tempo for app
+
   // Use the custom hooks
   const {
       isConnected,
@@ -25,18 +27,16 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
       disconnectWebSocket,
       startRecording,
       stopRecording,
-  } = useAudioToMidiClient();
+  } = useAudioToMidiClient(tempo);
 
   const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
   
-
   const { 
     isModelLoading, 
     isGeneratingNote,
     selectedModel,
     setSelectedModel,
-    // predictNotes,
-    playNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
+    predictNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
     // predictAndPlay,} = useMagentaIntegration(BASIC_RNN_URL, basicPitchSeq);
 
   // --- Render UI ---
@@ -46,6 +46,22 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
       <p style={{ textAlign: 'center', marginBottom: '30px', color: '#555' }}>
         Transcribe your audio to MIDI, predict continuations with AI, and play the result.
       </p>
+      <div>
+        <button onClick={() => {
+            const newTempo = parseInt(document.getElementById('tempoInput')?.value);
+              setTempo(newTempo);
+              console.log('tempo updated to : ', newTempo);
+          }}>
+            Set Tempo
+        </button>
+        <input
+          type="number"
+          id="tempoInput"
+          defaultValue={tempo}
+          min="20"
+          max="300"
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
         <button
           onClick={connectWebSocket}
@@ -92,12 +108,11 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
           Stop
         </button>
         <button
-          onClick={playNotes}
-          // onClick={predictNotes}
+          onClick={predictNotes}
           disabled={isGeneratingNote}
           style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
         >
-          Play Notes
+          Predict and Play Notes
         </button>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>

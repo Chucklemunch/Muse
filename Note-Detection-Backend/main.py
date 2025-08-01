@@ -13,6 +13,10 @@ import io
 import logging
 import numpy as np
 import pretty_midi # basic-pitch returns pretty_midi.PrettyMIDI objects, useful for conversion
+from pydantic import BaseModel
+
+class TempoInput(BaseModel):
+    tempo: int
 
 # Configure logging for better visibility in the console
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -227,8 +231,13 @@ async def websocket_audio_to_note_seq(websocket: WebSocket):
         audio_buffer.close()
         logger.info("WebSocket connection closed and resources cleaned up.")
     
-@app.get("/process-local-audio")
-async def process_local_audio():
+
+@app.post("/process-local-audio")
+async def process_local_audio(data: TempoInput):
+    # Get tempo data from API call
+    tempo = data.tempo
+    print("Received tempo from client: ", tempo)
+
     """
     Processes a hardcoded local audio file with basic-pitch and returns MIDI data.
     This is for testing server-side processing without needing a file upload.
@@ -252,7 +261,7 @@ async def process_local_audio():
         # Read the local audio file directly
         # basic-pitch's predict can take a file path string
         _, midi_file, _ = await asyncio.to_thread(
-            predict, LOCAL_TEST_AUDIO_PATH, BP_MODEL
+            predict, LOCAL_TEST_AUDIO_PATH, BP_MODEL, midi_tempo=tempo # need to get tempo from request body
         )
         
         midi_json = midi_to_json(midi_file)

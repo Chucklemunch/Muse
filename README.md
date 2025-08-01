@@ -33,7 +33,8 @@
 - Connect basic-pitch model between .ts frontend and FastAPI backend (DONE)
 - Add access to magenta models and ability to load different model based on checkpoint (DONE)
 - Convert output from basic-pitch to NoteSequence that can be fed into magenta model: Need to transpose out of range notes (DONE)
-- **Make magenta model output next notes and play through speaker**
+- Make magenta model output next notes and play through speaker (DONE)
+- **Make NoteSequence have time information that can be interpreted in measures/beats, so that model outputs can be scheduled**
 - **Create audio player that uses ToneJS's Sampler to use piano (or other) sounds to play output from Magenta model**
 - Set up microphone connection and a count-in before the recording starts
 - Add time signature feature that changes how MIDI gets processed
