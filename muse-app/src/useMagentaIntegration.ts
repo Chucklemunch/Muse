@@ -3,6 +3,7 @@ import { type ModelKey, CONSTANTS, transposeToValidPitchRange, magentaToToneSeq 
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
+import * as Tone from "tone";
 
 /*
 The magenta model makes predictions based on probabilities.
@@ -63,6 +64,8 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
     // Uses ToneJS to play notes returned from Magenta model
     const playNotes = async (notes : INoteSequence) => {
         // TODO NEED TO FIGURE OUT HOW TO SCHEDULE EVENTS ALONG TIMELINE USING TRANSPORT
+        const transport = getTransport();
+        console.log(transport);
 
         // const notes :  INoteSequence = await predictNotes();
         
@@ -72,7 +75,9 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
             return;
         } else{
             const toneJSNotes = magentaToToneSeq(notes, 120);
-            console.log(toneJSNotes);
+            console.log("toneJSNotes: ", toneJSNotes);
+
+            // Create sampler that plays predicted notes
             const sampler = new Sampler({
                 urls: {
                     A1: "A1.mp3",
@@ -81,8 +86,12 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 baseUrl: "https://tonejs.github.io/audio/salamander/",
                 onload: () => {
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
-                        sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], toneJSNotes.time[i]);
+                        // sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], toneJSNotes.time[i]);
+                        transport.schedule((time) => {
+                            sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], time);
+                        }, toneJSNotes.time[i]);
                     }
+                    transport.start("+0.1");
                 },
             }).toDestination();
         }
@@ -92,7 +101,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
     // --- asynchronous function for getting results from the magenta model
     const predictNotes = async () => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
-            console.log("basicPitchSeq is empty or undefined")
+            console.log("basicPitchSeq is empty or undefined");
         }
         if (musicModel.current != null) {
             try {
@@ -105,8 +114,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 console.log("quantNoteSeq: ", quantNoteSeq);
 
                 // Just to try outputting input sequence to audio
-                console.log('playing input seq')
-                getTransport()
+                console.log('playing input seq');
                 // await playNotes(quantNoteSeq);
 
 
@@ -118,17 +126,23 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 
                 setIsGeneratingNotes(false);
 
+                
+                
+                // Started audio context
+                await Tone.start();
+                console.log("context started");
+
                 // Function call that plays notes as audio
-                console.log('playing magenta seq')
+                console.log('playing magenta seq');
                 await playNotes(magentaResult);
             }
             catch (err) {
-                console.error("Quantization or continuation error: ", err)
+                console.error("Quantization or continuation error: ", err);
             }
         } else {
             console.log('musicModel is not initialized');
         }
-            return new NoteSequence()
+            return new NoteSequence();
     }
 
 
