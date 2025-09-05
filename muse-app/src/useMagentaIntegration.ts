@@ -65,6 +65,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
     const playNotes = async (notes : INoteSequence, bpm : number) => {
         // TODO NEED TO FIGURE OUT HOW TO SCHEDULE EVENTS ALONG TIMELINE USING TRANSPORT
         const transport = getTransport();
+        transport.bpm.value = bpm;
         console.log(transport);
 
         // const notes :  INoteSequence = await predictNotes();
@@ -130,8 +131,8 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
                 
                 // Started audio context
-                await Tone.start();
-                console.log("context started");
+                // await Tone.start();
+                // console.log("context started");
 
                 // Function call that plays notes as audio
                 console.log('playing magenta seq');
