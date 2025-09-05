@@ -14,7 +14,7 @@ const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
 const BASIC_RNN : ModelKey = "BASIC_RNN"; 
 const MELODY_RNN : ModelKey = "MELODY_RNN";
 
-const [tempo, setTempo] = useState<number>(120); // Default tempo for app
+const [bpm, setBPM] = useState<number>(120); // Default tempo for app
 
   // Use the custom hooks
   const {
@@ -27,7 +27,7 @@ const [tempo, setTempo] = useState<number>(120); // Default tempo for app
       disconnectWebSocket,
       startRecording,
       stopRecording,
-  } = useAudioToMidiClient(tempo);
+  } = useAudioToMidiClient(bpm);
 
   const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
   
@@ -48,16 +48,16 @@ const [tempo, setTempo] = useState<number>(120); // Default tempo for app
       </p>
       <div>
         <button onClick={() => {
-            const newTempo = parseInt(document.getElementById('tempoInput')?.value);
-              setTempo(newTempo);
-              console.log('tempo updated to : ', newTempo);
+            const newBPM = parseInt(document.getElementById('tempoInput')?.value);
+              setBPM(newBPM);
+              console.log('tempo updated to : ', newBPM);
           }}>
             Set Tempo
         </button>
         <input
           type="number"
           id="tempoInput"
-          defaultValue={tempo}
+          defaultValue={bpm}
           min="20"
           max="300"
         />
@@ -108,7 +108,7 @@ const [tempo, setTempo] = useState<number>(120); // Default tempo for app
           Stop
         </button>
         <button
-          onClick={predictNotes}
+          onClick={() => predictNotes(bpm)}
           disabled={isGeneratingNote}
           style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
         >

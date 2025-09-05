@@ -1,5 +1,6 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
+import * as Tone from "tone";
 
 export const CONSTANTS = {
     "BASIC_RNN" : {
@@ -67,30 +68,35 @@ export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel
 export function magentaToToneSeq(noteSeq: INoteSequence, bpm: number) {
     const notes = {
         notes : [] as number[],
-        duration : [] as number[],
+        duration : [] as Time [],
         time : [] as Time []
     };
     if (noteSeq.notes && noteSeq.quantizationInfo?.stepsPerQuarter) {
-        const quantizedStepToSeconds = (step: number, stepsPerQuarter: number, bpm: number) => {
-            const quartersPerMinute = bpm;
-            const secondsPerQuarter = 60 / quartersPerMinute;
-            return (step / stepsPerQuarter) * secondsPerQuarter;
-        }
+        // const quantizedStepToSeconds = (step: number, stepsPerQuarter: number, bpm: number) => {
+        //     const quartersPerMinute = bpm;
+        //     const secondsPerQuarter = 60 / quartersPerMinute;
+        //     return (step / stepsPerQuarter) * secondsPerQuarter;
+        // }
 
         const stepsPerQuarter = noteSeq.quantizationInfo.stepsPerQuarter;
+        console.log('stepsPerQuarter: ', stepsPerQuarter);
         
         // Convert NoteSequence into object that can be used by ToneJS
-
         for (const note of noteSeq.notes) {
             if (note.quantizedStartStep != null && note.quantizedEndStep != null && note.pitch!= null ) {
                 const pitch = note.pitch;
-                const startTime = quantizedStepToSeconds(note.quantizedStartStep, stepsPerQuarter, bpm);
-                const endTime = quantizedStepToSeconds(note.quantizedEndStep, stepsPerQuarter, bpm);
-                const duration = endTime - startTime;
+                // computes which beat note starts on 
+                const startBeats = note.quantizedStartStep / stepsPerQuarter;
+                // calculates how many quarter notes note lasts
+                const durationBeats = (note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter; 
+
+                // Convert beats to bars:beats:sixteenths notation
+                const startTime = Tone.Time(startBeats).toBarsBeatsSixteenths();
+                const durationTime = Tone.Time(durationBeats).toNotation();
 
                 // Add information for each note to notes object
                 notes.notes.push(pitch);  
-                notes.duration.push(duration);
+                notes.duration.push(durationTime);
                 notes.time.push(startTime);  
 
             }

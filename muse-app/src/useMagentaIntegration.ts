@@ -62,7 +62,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
     }, [selectedModel]);
 
     // Uses ToneJS to play notes returned from Magenta model
-    const playNotes = async (notes : INoteSequence) => {
+    const playNotes = async (notes : INoteSequence, bpm : number) => {
         // TODO NEED TO FIGURE OUT HOW TO SCHEDULE EVENTS ALONG TIMELINE USING TRANSPORT
         const transport = getTransport();
         console.log(transport);
@@ -74,7 +74,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
             console.log("playNotes: note sequence had zero length");
             return;
         } else{
-            const toneJSNotes = magentaToToneSeq(notes, 120);
+            const toneJSNotes = magentaToToneSeq(notes, bpm);
             console.log("toneJSNotes: ", toneJSNotes);
 
             // Create sampler that plays predicted notes
@@ -88,6 +88,8 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
                         // sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], toneJSNotes.time[i]);
                         transport.schedule((time) => {
+                            console.log('transport time: ', time);
+                            console.log('note time: ', toneJSNotes.time[i]);
                             sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], time);
                         }, toneJSNotes.time[i]);
                     }
@@ -99,7 +101,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictNotes = async () => {
+    const predictNotes = async (bpm : number) => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined");
         }
@@ -119,7 +121,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
 
                 // Get next note predictions from Magenta model
-                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.3) as INoteSequence;
+                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.7) as INoteSequence;
 
                 console.log("magenta result: ", magentaResult);
                 console.log("magenta result sequence type: ", typeof(magentaResult));
@@ -127,14 +129,13 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 setIsGeneratingNotes(false);
 
                 
-                
                 // Started audio context
                 await Tone.start();
                 console.log("context started");
 
                 // Function call that plays notes as audio
                 console.log('playing magenta seq');
-                await playNotes(magentaResult);
+                await playNotes(magentaResult, bpm);
             }
             catch (err) {
                 console.error("Quantization or continuation error: ", err);
