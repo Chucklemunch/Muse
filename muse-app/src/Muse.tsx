@@ -1,6 +1,6 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
@@ -17,35 +17,53 @@ const MELODY_RNN : ModelKey = "MELODY_RNN";
 const [bpm, setBPM] = useState<number>(120); // Default BPM for app
 const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
+// Metronome used throughout entire deployment
+const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
+const metronomeIdRef = useRef<number | null>(null);
+
+// Setup BPM for metronome whenever it is changed in app
 useEffect(() => {
   const transport = Tone.getTransport();
   transport.bpm.value = bpm;
+}, [bpm]);
 
-  const metronome = new Tone.MembraneSynth({
+useEffect(() => {
+  const transport = Tone.getTransport();
+
+  metronomeRef.current = new Tone.MembraneSynth({
     pitchDecay: 0.02,
     octaves: 2,
     envelope: {
-      attack: 0.001,
-      decay: 0.2,
+      attack: 0.01,
+      decay: 0.1,
       sustain: 0
     }
   }).toDestination();
-
-  const id = transport.scheduleRepeat((time) => {
-    metronome.triggerAttackRelease("C2", "8n", time);
+    
+  metronomeIdRef.current = transport.scheduleRepeat((time) => {
+    metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
   }, "4n");
 
+  // Clean-up to avoid duplicate metronomes
   return () => {
-    transport.clear(id);
-    metronome.dispose();
+    // Clear metronome id
+    if (metronomeIdRef.current !== null) {
+      transport.clear(metronomeIdRef.current);
+      metronomeIdRef.current = null;
+    }
+
+    // Get rid of metronome
+    metronomeRef.current?.dispose();
   }
 });
   
 
 const startStopMetronome = async () => {
   await Tone.start();
+  
+  // Get transport
   const transport = Tone.getTransport();
-
+  
   if (!metronomePlaying) {
     transport.start("+0.1");
   } else {

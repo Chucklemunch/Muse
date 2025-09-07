@@ -22,9 +22,6 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
     const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
     const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
 
-    // Used for keeping track of how many measures/beats have elapsed
-    const [setNextMeasure, nextMeasure] = useState<string>("0:0:0");
-
 
     // Loads Model When Browser Loads
     useEffect (() => {
@@ -86,14 +83,24 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
                 },
                 baseUrl: "https://tonejs.github.io/audio/salamander/",
                 onload: () => {
+
+                    // Creating empty part
+                    const part = new Tone.Part((time, value) => {
+                        sampler.triggerAttackRelease(value.notePitch, value.noteDuration, time);
+                    });
+
+                    part.loop = false;
+
+                    // Adds notes from to note sequence to Part to be played back
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
-                        // sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], toneJSNotes.time[i]);
-                        transport.schedule((time) => {
-                            console.log('transport time: ', time);
-                            console.log('note time: ', toneJSNotes.time[i]);
-                            sampler.triggerAttackRelease(toneJSNotes.notes[i], toneJSNotes.duration[i], time);
-                        }, toneJSNotes.time[i]);
+                        const noteTime = toneJSNotes.time[i];
+                        const noteDuration = toneJSNotes.duration[i];
+                        const notePitch = toneJSNotes.notes[i];
+                        
+                        part.add(noteTime, {notePitch, noteDuration});
                     }
+
+                    part.start("+0.1")
                     transport.start("+0.1");
                 },
             }).toDestination();
@@ -122,7 +129,7 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
 
                 // Get next note predictions from Magenta model
-                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.7) as INoteSequence;
+                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 5) as INoteSequence;
 
                 console.log("magenta result: ", magentaResult);
                 console.log("magenta result sequence type: ", typeof(magentaResult));
