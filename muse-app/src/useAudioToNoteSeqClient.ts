@@ -49,11 +49,11 @@ export const useAudioToMidiClient= (bpm: number) => {
   // --- WebSocket Connection Logic ---
   const connectWebSocket = useCallback(() => {
     // Use the explicitly defined WebSocket URL for FastAPI
-    ws.current = new WebSocket(FASTAPI_WS_URL);
+    ws.current = new WebSocket(`${FASTAPI_WS_URL}?bpm=${bpm}`);
 
     ws.current.onopen = () => {
       setIsConnected(true);
-      console.log('WebSocket Connected!', 'success');
+      console.log('WebSocket Connected!', 'success', `bpm: ${bpm}`);
     };
 
     ws.current.onmessage = (event: MessageEvent) => {

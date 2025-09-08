@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
@@ -91,16 +91,20 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
 # --- FastAPI Endpoints ---
 
 # LOCAL TESTING AUDIO
-LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/1375__sleep__90_bpm_nylon2.wav'
+# LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/1375__sleep__90_bpm_nylon2.wav'
+LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/latin-hip-hop-acoustic-guitar-harmony_110bpm_E_minor.wav'
+# LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/guitar-pack-riff.wav'
+# LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/piano-chord-melody_126bpm_A_minor.wav'
+# LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/rhodes-keys-chord-c-major_C_major.wav'
 
 @app.websocket("/audio_to_note_seq")
-async def websocket_audio_to_note_seq(websocket: WebSocket):
+async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120)):
     """
     WebSocket endpoint for receiving audio streams, processing them with basic-pitch,
     and sending back MIDI data.
     """
     await websocket.accept()
-    logger.info("WebSocket connection established.")
+    logger.info(f"WebSocket connection established. BPM = {bpm}")
 
     # Buffer to accumulate audio chunks
     # basic-pitch's predict expects a file-like object or path.
@@ -153,7 +157,7 @@ async def websocket_audio_to_note_seq(websocket: WebSocket):
                     audio_data_for_bp = audio_buffer.read()
 
                     if len(audio_data_for_bp) > 0:
-                        logger.debug(f"Processing {len(audio_data_for_bp)} bytes with basic-pitch...")
+                        print(f"Processing {len(audio_data_for_bp)} bytes with basic-pitch...")
                         
                         # Run basic-pitch in a separate thread to avoid blocking the event loop
                         # predict is a synchronous (blocking) function.
@@ -161,17 +165,17 @@ async def websocket_audio_to_note_seq(websocket: WebSocket):
                         try:
                             # basic-pitch returns (model_output, midi_data, note_events)
                             # We are interested in midi_data 
-                            _, midi_file, _ = await asyncio.to_thread(
-                                predict, audio_data_for_bp, BP_MODEL
+                            _, midi_data, _ = await asyncio.to_thread(
+                                predict, audio_data_for_bp, BP_MODEL, midi_tempo=bpm
                             )
                             
                             # Check if basic-pitch returns something
-                            if midi_file is None:
-                                logger.warning("midi_to_json received None for midi_file. Returning empty list.")
+                            if midi_data is None:
+                                logger.warning("midi_to_json received None for midi_data. Returning empty list.")
                                 return []
                             
                             # Convert pretty_midi.PrettyMIDI to JSON-serializable format
-                            note_seq = midi_to_note_sequence(midi_file)
+                            note_seq = midi_to_note_sequence(midi_data)
                             note_seq_json = MessageToJson(note_seq)
                             
                             
@@ -199,10 +203,10 @@ async def websocket_audio_to_note_seq(websocket: WebSocket):
                     final_audio_data = audio_buffer.read()
                     if final_audio_data and BP_MODEL:
                         logger.info(f"Processing final {len(final_audio_data)} bytes...")
-                        _, final_midi_file, _ = await asyncio.to_thread(
-                            predict, final_audio_data, BP_MODEL
+                        _, final_midi_data, _ = await asyncio.to_thread(
+                            predict, final_audio_data, BP_MODEL, midi_tempo=bpm
                         )
-                        final_midi_json = midi_to_json(final_midi_file)
+                        final_midi_json = midi_to_json(final_midi_data)
                         if final_midi_json:
                             await websocket.send_json(final_midi_json)
                             logger.info(f"Sent final {len(final_midi_json)} MIDI events.")
@@ -258,13 +262,14 @@ async def process_local_audio(data: BPMInput):
     logger.info(f"Processing local audio file: {LOCAL_TEST_AUDIO_PATH} with basic-pitch...")
 
     try:
+        print("BPM FOR PROCESSING: ", bpm)
         # Read the local audio file directly
         # basic-pitch's predict can take a file path string
-        _, midi_file, _ = await asyncio.to_thread(
+        _, midi_data, _ = await asyncio.to_thread(
             predict, LOCAL_TEST_AUDIO_PATH, BP_MODEL, midi_tempo=bpm # need to get bpm from request body
         )
         
-        midi_json = midi_to_json(midi_file)
+        midi_json = midi_to_json(midi_data)
         logger.info(f"Finished processing local file. Detected {len(midi_json)} MIDI events.")
         logger.warning(midi_json)
         

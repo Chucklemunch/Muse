@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
-import { type ModelKey } from './utils';
+import { type ModelKey, type KeyName } from './types';
 import * as Tone from "tone";
 
 const Muse: React.FC = () => {
@@ -14,9 +14,17 @@ const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
 const BASIC_RNN : ModelKey = "BASIC_RNN"; 
 const MELODY_RNN : ModelKey = "MELODY_RNN";
 
+// Musical logistics setup
+const [key, setKey] = useState<KeyName>("C");
 const [bpm, setBPM] = useState<number>(120); // Default BPM for app
 const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
-
+const KEYS: KeyName[] = [
+  "C", "Db", "D", "Eb", "E",
+  "F", "F#", "G", "Ab", "A",
+  "Bb", "B", "Cm", "C#m", "Dm",
+  "Ebm", "Em", "Fm", "F#m", "Gm",
+  "G#m", "Am", "Bbm", "Bm"
+];
 // Metronome used throughout entire deployment
 const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
 const metronomeIdRef = useRef<number | null>(null);
@@ -127,6 +135,19 @@ const startStopMetronome = async () => {
             {metronomePlaying ? "Stop Metronome" : "Start Metronome"}
         </button>
       </div>
+      <div className="flex flex-wrap gap-2">
+        {KEYS.map((keySig) => (
+          <button
+            key={keySig}
+            onClick={() => {
+              setKey(keySig);
+              console.log("key change: ", keySig);
+            }}
+          >
+            {keySig}
+          </button>
+      ))}
+    </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
         <button
           onClick={connectWebSocket}
@@ -173,7 +194,7 @@ const startStopMetronome = async () => {
           Stop
         </button>
         <button
-          onClick={() => predictNotes(bpm)}
+          onClick={() => predictNotes(key, bpm)}
           disabled={isGeneratingNote}
           style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
         >
