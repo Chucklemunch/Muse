@@ -139,6 +139,12 @@ const startStopMetronome = async () => {
         {KEYS.map((keySig) => (
           <button
             key={keySig}
+            style={{ 
+              backgroundColor: (key == keySig) ? '#497ddeff' : '#f6f6f6ff', 
+              color: 'black',
+              margin: 10
+            }}
+
             onClick={() => {
               setKey(keySig);
               console.log("key change: ", keySig);
