@@ -121,32 +121,13 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
                 logger.debug(f"Received audio chunk: {len(audio_chunk)} bytes. Total buffered: {audio_buffer.tell()} bytes.")
 
                 # --- Real-time Processing Strategy ---
-                # For basic-pitch, it's often best to process a segment of audio
-                # rather than tiny chunks. You might accumulate for a few seconds
-                # or process on a fixed interval.
-                # For this example, let's process every time a chunk arrives,
-                # but in a real-time scenario, you'd want a more sophisticated
-                # buffering and processing logic (e.g., process every 1-2 seconds of audio).
-
+                
                 # Ensure we have enough audio to process (e.g., at least 1 second)
                 # This is a simple heuristic; a more robust solution would track audio duration.
                 # Assuming 44.1 kHz, 16-bit mono PCM: 44100 * 2 bytes/sample = 88200 bytes/sec
                 # If using webm, size will vary. basic-pitch resamples to 22050 Hz internally.
                 # Let's process if we have at least 0.5 seconds of audio (approx. 44KB for raw 44.1kHz)
                 # Given the frontend sends every 500ms, this is a good trigger.
-                
-                # IMPORTANT: basic-pitch's predict expects the entire audio content.
-                # It does not have a "streaming" API where you feed it chunks incrementally.
-                # So, we pass the *entire* accumulated buffer each time.
-                # This means it re-processes already processed audio, which is inefficient
-                # for long streams but simple for a demo.
-                
-                # For true efficient real-time, you'd need to:
-                # 1. Implement a sliding window buffer.
-                # 2. Call basic-pitch on the *newest portion* of the window.
-                # 3. Handle overlapping predictions and merge MIDI.
-                # This is complex and beyond a simple example.
-                # For now, we'll process the full accumulated buffer.
 
                 # Only attempt predict if the model is loaded
                 if BP_MODEL:

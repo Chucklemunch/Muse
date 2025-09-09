@@ -38,8 +38,8 @@
 - Make NoteSequence have time information that can be interpreted in measures/beats, so that model outputs can be scheduled (DONE)
 - Create audio player that uses ToneJS's Sampler to use piano (or other) sounds to play output from Magenta model (DONE)
 - Add tempo control and a metronome of sorts (DONE)
-- **Add ability to select key**
-- **Transpose sequence output from Magenta model to be in user selected key**
+- Add ability to select key (DONE)
+- Transpose sequence output from Magenta model to be in user selected key (DONE)
 - **Set up microphone connection and a count-in before the recording starts**
 - Add time signature feature that changes how MIDI gets processed
 - Figure out how to chunk audio by number of beats/notes
