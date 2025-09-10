@@ -40,6 +40,7 @@
 - Add tempo control and a metronome of sorts (DONE)
 - Add ability to select key (DONE)
 - Transpose sequence output from Magenta model to be in user selected key (DONE)
+- **URGENT: Restructure app so that magenta integration and audio-to-note-seq are embedded within react components so they can send information about basic-pitch results audio stuff upwards.**
 - **Set up audio recording to record user audio and pass it to basic pitch model in time**
 - **Set up microphone connection and a count-in before the recording starts**
 - Add time signature feature that changes how MIDI gets processed

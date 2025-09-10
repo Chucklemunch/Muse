@@ -15,9 +15,22 @@ const BASIC_RNN : ModelKey = "BASIC_RNN";
 const MELODY_RNN : ModelKey = "MELODY_RNN";
 
 // Musical logistics setup
+const [isJamming, setJamming] = useState<boolean>(false);
+const [isRecording, setIsRecording] = useState<boolean>(false);
+const isRecordingRef = useRef(isRecording);
+// Makes sure recording status is updated while jamming callback is running
+useEffect (() => {
+  isRecordingRef.current = isRecording;
+}, [isRecording]);
+
+
 const [key, setKey] = useState<KeyName>("C");
 const [bpm, setBPM] = useState<number>(120); // Default BPM for app
+const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
 const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
+
+const transport = Tone.getTransport();
+
 const KEYS: KeyName[] = [
   "C", "Db", "D", "Eb", "E",
   "F", "F#", "G", "Ab", "A",
@@ -25,18 +38,22 @@ const KEYS: KeyName[] = [
   "Ebm", "Em", "Fm", "F#m", "Gm",
   "G#m", "Am", "Bbm", "Bm"
 ];
+
 // Metronome used throughout entire deployment
 const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
 const metronomeIdRef = useRef<number | null>(null);
 
+// Initialize recording states
+let currentMeasure = 0;
+
 // Setup BPM for metronome whenever it is changed in app
 useEffect(() => {
-  const transport = Tone.getTransport();
+  // const transport = Tone.getTransport();
   transport.bpm.value = bpm;
 }, [bpm]);
 
 useEffect(() => {
-  const transport = Tone.getTransport();
+  // const transport = Tone.getTransport();
 
   metronomeRef.current = new Tone.MembraneSynth({
     pitchDecay: 0.02,
@@ -67,22 +84,23 @@ useEffect(() => {
   
 
 const startStopMetronome = async () => {
-  await Tone.start();
-  
   // Get transport
-  const transport = Tone.getTransport();
-  
+  // const transport = Tone.getTransport();
+  console.log('is metronome playing? :', metronomePlaying);
+
   if (!metronomePlaying) {
     transport.start("+0.1");
+    setMetronomePlaying(true);
   } else {
     transport.stop();
+    setMetronomePlaying(false);
   }
 }
 
   // Use the custom hooks
   const {
       isConnected,
-      isRecording,
+      // isRecording,
       isAudioProcessed,
       basicPitchResult,
       processLocalAudio,
@@ -92,15 +110,53 @@ const startStopMetronome = async () => {
       stopRecording,
   } = useAudioToMidiClient(bpm);
 
-  const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
+  // const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
   
-  const { 
-    isModelLoading, 
-    isGeneratingNote,
-    selectedModel,
-    setSelectedModel,
-    predictNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
-    // predictAndPlay,} = useMagentaIntegration(BASIC_RNN_URL, basicPitchSeq);
+  // const { 
+  //   isModelLoading, 
+  //   isGeneratingNote,
+  //   selectedModel,
+  //   setSelectedModel,
+  //   predictNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
+
+  const startJamming = () => {
+    const measureDuration = Tone.Time("1m").toMilliseconds();
+    console.log('measureDuration: ', measureDuration);
+    
+    // Getting global transport for event scheduling
+    const transport = Tone.getTransport();
+    const cycleLength = 2 * measures; // Number of measures in person/AI exchange
+    const measuresToRecord = measures - 1 // Using last measure to send info to basic-pitch
+    console.log('cycleLength: ', cycleLength); 
+    console.log('measuresToRecord: ', measuresToRecord);
+
+    transport.scheduleRepeat(() => {
+      console.log('time: ', transport.seconds);
+      currentMeasure = Math.floor(transport.seconds / (measureDuration / 1000)) % cycleLength;
+      console.log('current measure: ', currentMeasure)
+      console.log('isRecording: ', isRecordingRef.current);
+
+      if ((currentMeasure <= measuresToRecord) && !isRecordingRef.current) {
+        startRecording(measureDuration); // measureDuration in milliseconds
+        setIsRecording(true);
+        
+      } else if (
+        (currentMeasure > measuresToRecord) && 
+        (currentMeasure <= cycleLength / 2) && 
+        isRecordingRef.current) {
+        console.log('elif 1');
+        stopRecording();
+        setIsRecording(false);
+        console.log('basicPitchResult.current');
+        console.log(basicPitchResult.current);
+      } else if ((currentMeasure >= cycleLength / 2) && !isRecordingRef.current) {
+          console.log('elif 2 ', currentMeasure);
+        
+      }
+    }, "1m");
+
+    transport.start("+0.1");
+  };
 
   // --- Render UI ---
   return (
@@ -114,7 +170,7 @@ const startStopMetronome = async () => {
             const newBPM = parseInt(document.getElementById('tempoInput')?.value);
               setBPM(newBPM);
               console.log('tempo updated to : ', newBPM);
-          }}>
+        }}>
             Set Tempo
         </button>
         <input
@@ -124,16 +180,22 @@ const startStopMetronome = async () => {
           min="20"
           max="300"
         />
-        <button 
-          onClick={() => {
-             startStopMetronome();
-             setMetronomePlaying(!metronomePlaying);
-             console.log("metronomePlaying: ", !metronomePlaying);
-          }}
-          style={{ backgroundColor: metronomePlaying ? '#ad1515ff' : '#28a745', color: 'white' }}
-        >
-            {metronomePlaying ? "Stop Metronome" : "Start Metronome"}
+      </div>
+      <div>
+        <button onClick={() => {
+            const newMeasures = parseInt(document.getElementById('measureInput')?.value);
+              setMeasures(newMeasures);
+              console.log('measures updated to : ', newMeasures);
+          }}>
+            Measure to Trade
         </button>
+        <input
+          type="number"
+          id="measureInput"
+          defaultValue={measures}
+          min="20"
+          max="300"
+        />
       </div>
       <div className="flex flex-wrap gap-2">
         {KEYS.map((keySig) => (
@@ -186,18 +248,29 @@ const startStopMetronome = async () => {
           }
         </button>
         <button
-          onClick={startRecording}
+          onClick={async () => {
+            await Tone.start();
+            // const transport = Tone.getTransport();
+            console.log('transport time: ', transport.seconds);
+            startJamming();
+            setJamming(true);
+            startStopMetronome();
+          }}
           disabled={!isConnected || isRecording || isModelLoading}
           style={{ backgroundColor: (!isConnected || isRecording || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
         >
-          {isRecording ? 'Recording...' : 'Start Recording'}
+          {isRecording ? 'Jamming...' : 'Start Jamming'}
         </button>
         <button
-          onClick={stopRecording}
-          disabled={!isRecording}
-          style={{ backgroundColor: !isRecording ? '#cccccc' : '#dc3545', color: 'white' }}
+          onClick={() => {
+            stopRecording();
+            setJamming(false);
+            startStopMetronome();
+          }}
+          disabled={!isJamming}
+          style={{ backgroundColor: !isJamming ? '#cccccc' : '#dc3545', color: 'white' }}
         >
-          Stop
+          Stop Jam
         </button>
         <button
           onClick={() => predictNotes(key, bpm)}

@@ -1,5 +1,6 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
-import { type ModelKey, CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
+import { CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
+import type { ModelKey } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
@@ -12,7 +13,7 @@ The valid note range depends on the model being used
 Class 0 = no event
 Class 1 = note-off event
 */
-export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq: INoteSequence) {
+export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq: INoteSequence) => {
     // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
 
@@ -64,8 +65,6 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
     // Uses ToneJS to play notes returned from Magenta model
     const playNotes = async (notes : INoteSequence, key: KeyName, bpm : number) => {
-        // TODO NEED TO FIGURE OUT HOW TO SCHEDULE EVENTS ALONG TIMELINE USING TRANSPORT
-
         // Interval that sequence needs to be transposed
         const interval = KEY_NUMBERS[key];
 
@@ -145,13 +144,12 @@ export function useMagentaIntegration (modelCheckpointURL: string, basicPitchSeq
 
 
                 // Get next note predictions from Magenta model
-                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 1) as INoteSequence;
+                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.5) as INoteSequence;
 
                 console.log("magenta result: ", magentaResult);
                 console.log("magenta result sequence type: ", typeof(magentaResult));
                 
                 setIsGeneratingNotes(false);
-
                 
                 // Started audio context
                 // await Tone.start();

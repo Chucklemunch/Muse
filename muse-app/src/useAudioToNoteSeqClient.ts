@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { NoteSequence } from '@magenta/music';
-import type { BasicPitchNoteSequenceResponse } from './types';
-
 
 // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
 // For local development, it's typically http://localhost:8000
@@ -12,13 +10,12 @@ const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove p
 const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_note_seq`;
 const FASTAPI_WS_PROCESS_LOCAL_AUDIO = `${FASTAPI_BASE_URL}/process-local-audio`;
 
-export const useAudioToMidiClient= (bpm: number) => {
+export const useAudioToMidiClient =  (bpm: number) => {
   // Defining variable for the NoteSequence that will get passed to the Magenta model
   const basicPitchResult = useRef<NoteSequence>(null);
 
   // State for UI and connection status
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
   const[isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
 
   // Refs to hold mutable objects that don't trigger re-renders
@@ -59,9 +56,9 @@ export const useAudioToMidiClient= (bpm: number) => {
     ws.current.onmessage = (event: MessageEvent) => {
       console.log('in onmessege');
       try {
-        const data: BasicPitchNoteSequenceResponse = JSON.parse(event.data);
+        basicPitchResult.current = JSON.parse(event.data);
         console.log('midi json result from basic-pitch')
-        console.log(data)
+        console.log(basicPitchResult.current)
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.log(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
@@ -71,7 +68,7 @@ export const useAudioToMidiClient= (bpm: number) => {
 
     ws.current.onclose = (event: CloseEvent) => {
       setIsConnected(false);
-      setIsRecording(false); // Stop recording if WS closes
+      // setIsRecording(false); // Stop recording if WS closes
       console.log(`WebSocket Disconnected: Code ${event.code}, Reason: ${event.reason || 'No reason'}`, 'error');
     };
 
@@ -84,7 +81,7 @@ export const useAudioToMidiClient= (bpm: number) => {
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
-      setIsRecording(false);
+      // setIsRecording(false);
     }
     if (audioStream.current) {
       audioStream.current.getTracks().forEach(track => track.stop());
@@ -109,7 +106,8 @@ export const useAudioToMidiClient= (bpm: number) => {
   }, [connectWebSocket, stopRecording]);
 
   // --- Microphone and Recording Logic ---
-  const startRecording = async () => {
+  const startRecording = async (measureDuration: number) => {
+
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
@@ -158,8 +156,9 @@ export const useAudioToMidiClient= (bpm: number) => {
         }
       };
 
-      mediaRecorder.current.start(500);
-      setIsRecording(true);
+      // Recording captures one measure at a time
+      mediaRecorder.current.start(measureDuration);
+      // setIsRecording(true);
       console.log('Recording started...', 'success');
 
     } catch (err: unknown) {
@@ -171,13 +170,13 @@ export const useAudioToMidiClient= (bpm: number) => {
 
     return {
       isConnected,
-      isRecording,
+      // isRecording,
       isAudioProcessed,
       basicPitchResult,
       processLocalAudio,
       connectWebSocket,
       disconnectWebSocket,
       startRecording,
-      stopRecording,
+      stopRecording
   };
 };

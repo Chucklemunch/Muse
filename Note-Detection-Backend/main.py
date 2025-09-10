@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import wave
 from pydub import AudioSegment
 
+# Allows for specification of bpm
 class BPMInput(BaseModel):
     bpm: int
 
@@ -100,7 +101,7 @@ def midi_to_json(pretty_midi_obj: pretty_midi.PrettyMIDI):
 
 # LOCAL TESTING AUDIO
 # LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/1375__sleep__90_bpm_nylon2.wav'
-LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/latin-hip-hop-acoustic-guitar-harmony_110bpm_E_minor.wav'
+# LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/latin-hip-hop-acoustic-guitar-harmony_110bpm_E_minor.wav'
 # LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/guitar-pack-riff.wav'
 # LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/piano-chord-melody_126bpm_A_minor.wav'
 # LOCAL_TEST_AUDIO_PATH = '/Users/kotula/code/Muse/Note-Detection-Backend/Sound-Samples/rhodes-keys-chord-c-major_C_major.wav'
@@ -181,52 +182,52 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
         logger.info("WebSocket connection closed and resources cleaned up.")
     
 
-@app.post("/process-local-audio")
-async def process_local_audio(data: BPMInput):
-    # Get bpm data from API call
-    bpm = data.bpm
-    print("Received bpm from client: ", bpm)
+# @app.post("/process-local-audio")
+# async def process_local_audio(data: BPMInput):
+#     # Get bpm data from API call
+#     bpm = data.bpm
+#     print("Received bpm from client: ", bpm)
 
-    """
-    Processes a hardcoded local audio file with basic-pitch and returns MIDI data.
-    This is for testing server-side processing without needing a file upload.
-    """
-    if not BP_MODEL:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Basic-Pitch model is not loaded on the server."
-        )
+#     """
+#     Processes a hardcoded local audio file with basic-pitch and returns MIDI data.
+#     This is for testing server-side processing without needing a file upload.
+#     """
+#     if not BP_MODEL:
+#         raise HTTPException(
+#             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+#             detail="Basic-Pitch model is not loaded on the server."
+#         )
 
-    if not os.path.exists(LOCAL_TEST_AUDIO_PATH):
-        logger.error(f"Local test audio file not found at: {LOCAL_TEST_AUDIO_PATH}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Local test audio file not found at '{LOCAL_TEST_AUDIO_PATH}'. Please update LOCAL_TEST_AUDIO_PATH in main.py."
-        )
+#     if not os.path.exists(LOCAL_TEST_AUDIO_PATH):
+#         logger.error(f"Local test audio file not found at: {LOCAL_TEST_AUDIO_PATH}")
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail=f"Local test audio file not found at '{LOCAL_TEST_AUDIO_PATH}'. Please update LOCAL_TEST_AUDIO_PATH in main.py."
+#         )
 
-    logger.info(f"Processing local audio file: {LOCAL_TEST_AUDIO_PATH} with basic-pitch...")
+#     logger.info(f"Processing local audio file: {LOCAL_TEST_AUDIO_PATH} with basic-pitch...")
 
-    try:
-        print("BPM FOR PROCESSING: ", bpm)
-        # Read the local audio file directly
-        # basic-pitch's predict can take a file path string
-        _, midi_data, _ = await asyncio.to_thread(
-            predict, LOCAL_TEST_AUDIO_PATH, BP_MODEL, midi_tempo=bpm # need to get bpm from request body
-        )
+#     try:
+#         print("BPM FOR PROCESSING: ", bpm)
+#         # Read the local audio file directly
+#         # basic-pitch's predict can take a file path string
+#         _, midi_data, _ = await asyncio.to_thread(
+#             predict, LOCAL_TEST_AUDIO_PATH, BP_MODEL, midi_tempo=bpm # need to get bpm from request body
+#         )
         
-        midi_json = midi_to_json(midi_data)
-        logger.info(f"Finished processing local file. Detected {len(midi_json)} MIDI events.")
-        logger.warning(midi_json)
+#         midi_json = midi_to_json(midi_data)
+#         logger.info(f"Finished processing local file. Detected {len(midi_json)} MIDI events.")
+#         logger.warning(midi_json)
         
-        return JSONResponse(content={"source_file": LOCAL_TEST_AUDIO_PATH, "midi_data": midi_json})
+#         return JSONResponse(content={"source_file": LOCAL_TEST_AUDIO_PATH, "midi_data": midi_json})
 
-    except Exception as e:
-        logger.error(f"Error processing local audio file '{LOCAL_TEST_AUDIO_PATH}': {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process local audio: {e}"
-        )
-        return []
+#     except Exception as e:
+#         logger.error(f"Error processing local audio file '{LOCAL_TEST_AUDIO_PATH}': {e}", exc_info=True)
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to process local audio: {e}"
+#         )
+#         return []
     
 # This must be the LAST route defined in your FastAPI app.
 # It ensures that if no other API route matches, FastAPI will serve
