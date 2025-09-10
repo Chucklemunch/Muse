@@ -57,12 +57,15 @@ export const useAudioToMidiClient= (bpm: number) => {
     };
 
     ws.current.onmessage = (event: MessageEvent) => {
+      console.log('in onmessege');
       try {
         const data: BasicPitchNoteSequenceResponse = JSON.parse(event.data);
 
         if ('note_sequence' in data) { // Check if it's a MIDI response
           console.log(`Received MIDI data: ${data.note_sequence}`);
           // TODO: Integrate with Magenta.js here
+        } else{
+          console.log(data);
         }
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
@@ -132,6 +135,18 @@ export const useAudioToMidiClient= (bpm: number) => {
 
       const options: MediaRecorderOptions = { mimeType: mimeType };
       mediaRecorder.current = new MediaRecorder(audioStream.current, options);
+
+
+      /**
+       * The following code determined that the default audio recording
+       * settings for my laptop using Chrome were
+       * 
+       * channelCount = 1
+       * sampleRate = 48000 Hz
+       */      
+      const audioTrack = audioStream.current.getAudioTracks()[0];
+      const settings = audioTrack.getSettings(); 
+      console.log("Mic track settings:", settings); 
 
       mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {

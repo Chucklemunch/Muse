@@ -14,6 +14,7 @@ import logging
 import numpy as np
 import pretty_midi # basic-pitch returns pretty_midi.PrettyMIDI objects, useful for conversion
 from pydantic import BaseModel
+from scipy.io import wavfile
 
 class BPMInput(BaseModel):
     bpm: int
@@ -57,6 +58,11 @@ if not os.path.isdir(FRONTEND_BUILD_DIR):
 app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR + "/assets"), name="assets")
 # If your Vite config outputs assets directly to 'dist' without an 'assets' subfolder,
 # you might use: app.mount("/static", StaticFiles(directory=FRONTEND_BUILD_DIR), name="static")
+
+# Audio information
+USER_AUDIO_PATH = "user_audio.wav"
+SAMPLE_RATE = 48000
+SAMPLE_SIZE = 16 # PCM16
 
 # --- Load Basic-Pitch Model ---
 # It's crucial to load the model once when the application starts,
@@ -106,86 +112,40 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
     await websocket.accept()
     logger.info(f"WebSocket connection established. BPM = {bpm}")
 
-    # Buffer to accumulate audio chunks
-    # basic-pitch's predict expects a file-like object or path.
-    # We'll accumulate bytes and pass them to basic-pitch.
+    # Buffer for accumulating user audio input
     audio_buffer = io.BytesIO()
+    audio_buffer.seek(0) # Redundant?
 
     try:
         while True:
             message = await websocket.receive() # Receive any type of message
 
+            # Accumulates audio input
             if "bytes" in message:
                 audio_chunk = message["bytes"]
                 audio_buffer.write(audio_chunk)
                 logger.debug(f"Received audio chunk: {len(audio_chunk)} bytes. Total buffered: {audio_buffer.tell()} bytes.")
 
-                # --- Real-time Processing Strategy ---
-                
-                # Ensure we have enough audio to process (e.g., at least 1 second)
-                # This is a simple heuristic; a more robust solution would track audio duration.
-                # Assuming 44.1 kHz, 16-bit mono PCM: 44100 * 2 bytes/sample = 88200 bytes/sec
-                # If using webm, size will vary. basic-pitch resamples to 22050 Hz internally.
-                # Let's process if we have at least 0.5 seconds of audio (approx. 44KB for raw 44.1kHz)
-                # Given the frontend sends every 500ms, this is a good trigger.
-
-                # Only attempt predict if the model is loaded
-                if BP_MODEL:
-                    # Move buffer pointer to the beginning to read all content
-                    audio_buffer.seek(0)
-                    
-                    # Read all accumulated bytes for basic-pitch
-                    audio_data_for_bp = audio_buffer.read()
-
-                    if len(audio_data_for_bp) > 0:
-                        print(f"Processing {len(audio_data_for_bp)} bytes with basic-pitch...")
-                        
-                        # Run basic-pitch in a separate thread to avoid blocking the event loop
-                        # predict is a synchronous (blocking) function.
-                        # asyncio.to_thread() offloads it to a thread pool.
-                        try:
-                            # basic-pitch returns (model_output, midi_data, note_events)
-                            # We are interested in midi_data 
-                            _, midi_data, _ = await asyncio.to_thread(
-                                predict, audio_data_for_bp, BP_MODEL, midi_tempo=bpm
-                            )
-                            
-                            # Check if basic-pitch returns something
-                            if midi_data is None:
-                                logger.warning("midi_to_json received None for midi_data. Returning empty list.")
-                                return []
-                            
-                            # Convert pretty_midi.PrettyMIDI to JSON-serializable format
-                            note_seq = midi_to_note_sequence(midi_data)
-                            note_seq_json = MessageToJson(note_seq)
-                            
-                            
-                            if note_seq_json: # Only send if there's actual MIDI data
-                                await websocket.send_json(note_seq_json)
-                                logger.info(f"Sent {len(note_seq_json)} MIDI events to frontend.")
-                            else:
-                                logger.debug("No MIDI events detected in this segment.")
-
-                        except Exception as e:
-                            logger.error(f"Error during basic-pitch inference: {e}", exc_info=True)
-                            await websocket.send_json({"error": f"Backend processing error: {e}"})
-                else:
-                    logger.warning("Basic-Pitch model not loaded, skipping audio processing.")
-                    await websocket.send_json({"error": "Basic-Pitch model not loaded on backend."})
-
+            # Processes audio once audio recording stops at the end of certain number of measures
             elif "text" in message:
                 text_message = message["text"]
                 logger.info(f"Received text message: {text_message}")
                 if text_message == "END_OF_AUDIO":
                     logger.info("End of audio signal received. Closing buffer.")
-                    # Optionally, perform final processing on remaining audio_buffer content
-                    # before clearing or closing.
+                    
+                    # Read all audio from buffer and convert it to MIDI using basic-pitch model
                     audio_buffer.seek(0) # Reset pointer
                     final_audio_data = audio_buffer.read()
+                    audio_array = np.frombuffer(final_audio_data, dtype=np.int16)
+
+                    # Save user audio in file (that gets constantly overwritten)
+                    wavfile.write(USER_AUDIO_PATH, SAMPLE_RATE, audio_array)
+
+                    
                     if final_audio_data and BP_MODEL:
                         logger.info(f"Processing final {len(final_audio_data)} bytes...")
                         _, final_midi_data, _ = await asyncio.to_thread(
-                            predict, final_audio_data, BP_MODEL, midi_tempo=bpm
+                            predict, USER_AUDIO_PATH, BP_MODEL, midi_tempo=bpm
                         )
                         final_midi_json = midi_to_json(final_midi_data)
                         if final_midi_json:
@@ -194,9 +154,6 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
                     
                     audio_buffer.truncate(0) # Clear the buffer
                     audio_buffer.seek(0) # Reset pointer after clearing
-                    # You might choose to break the loop here if it's a one-shot connection per audio file
-                    # For continuous jamming, you might keep the connection open.
-                    # For this example, we keep it open until client disconnects.
 
             elif message["type"] == "websocket.disconnect":
                 logger.info("WebSocket disconnected gracefully.")

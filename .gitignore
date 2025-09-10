@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 # Editor directories and files
+user_audio.wav
 **/__pycache__/
 .ipynb_checkpoints
 .vscode/*
