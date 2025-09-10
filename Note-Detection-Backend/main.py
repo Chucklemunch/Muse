@@ -1,7 +1,7 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, HTTPException, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse
 from basic_pitch.inference import predict, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
 from note_seq.midi_io import midi_to_note_sequence
@@ -14,7 +14,8 @@ import logging
 import numpy as np
 import pretty_midi # basic-pitch returns pretty_midi.PrettyMIDI objects, useful for conversion
 from pydantic import BaseModel
-from scipy.io import wavfile
+import wave
+from pydub import AudioSegment
 
 class BPMInput(BaseModel):
     bpm: int
@@ -62,7 +63,8 @@ app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR + "/assets"), name
 # Audio information
 USER_AUDIO_PATH = "user_audio.wav"
 SAMPLE_RATE = 48000
-SAMPLE_SIZE = 16 # PCM16
+SAMPLE_WIDTH = 2 # PCM16: 16 bits / 8 (bits/byte) = 2
+CHANNELS = 1
 
 # --- Load Basic-Pitch Model ---
 # It's crucial to load the model once when the application starts,
@@ -114,7 +116,6 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
 
     # Buffer for accumulating user audio input
     audio_buffer = io.BytesIO()
-    audio_buffer.seek(0) # Redundant?
 
     try:
         while True:
@@ -124,7 +125,7 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
             if "bytes" in message:
                 audio_chunk = message["bytes"]
                 audio_buffer.write(audio_chunk)
-                logger.debug(f"Received audio chunk: {len(audio_chunk)} bytes. Total buffered: {audio_buffer.tell()} bytes.")
+                print(f"Received audio chunk: {len(audio_chunk)} bytes. Total buffered: {audio_buffer.tell()} bytes.")
 
             # Processes audio once audio recording stops at the end of certain number of measures
             elif "text" in message:
@@ -135,13 +136,19 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
                     
                     # Read all audio from buffer and convert it to MIDI using basic-pitch model
                     audio_buffer.seek(0) # Reset pointer
-                    final_audio_data = audio_buffer.read()
-                    audio_array = np.frombuffer(final_audio_data, dtype=np.int16)
 
-                    # Save user audio in file (that gets constantly overwritten)
-                    wavfile.write(USER_AUDIO_PATH, SAMPLE_RATE, audio_array)
+                    # Must convert WEBM audio to PCM
+                    final_audio_data = AudioSegment.from_file(
+                        audio_buffer, 
+                        format='webm', 
+                        frame_rate=SAMPLE_RATE, 
+                        channels=CHANNELS, 
+                        sample_width=2
+                    )
 
-                    
+                    # Saves audio to file that can be sent to basic-pitch model
+                    final_audio_data.export(USER_AUDIO_PATH, format="wav")
+
                     if final_audio_data and BP_MODEL:
                         logger.info(f"Processing final {len(final_audio_data)} bytes...")
                         _, final_midi_data, _ = await asyncio.to_thread(

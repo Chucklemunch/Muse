@@ -60,13 +60,8 @@ export const useAudioToMidiClient= (bpm: number) => {
       console.log('in onmessege');
       try {
         const data: BasicPitchNoteSequenceResponse = JSON.parse(event.data);
-
-        if ('note_sequence' in data) { // Check if it's a MIDI response
-          console.log(`Received MIDI data: ${data.note_sequence}`);
-          // TODO: Integrate with Magenta.js here
-        } else{
-          console.log(data);
-        }
+        console.log('midi json result from basic-pitch')
+        console.log(data)
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.log(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
@@ -122,15 +117,7 @@ export const useAudioToMidiClient= (bpm: number) => {
 
     try {
       audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      let mimeType = 'audio/webm';
-      const preferredMimeTypes = ['audio/webm;codecs=pcm', 'audio/wav'];
-      for (const type of preferredMimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          break;
-        }
-      }
+      const mimeType = 'audio/webm;codecs=opus';
       console.log(`Using MIME type for recording: ${mimeType}`, 'info');
 
       const options: MediaRecorderOptions = { mimeType: mimeType };
@@ -144,20 +131,28 @@ export const useAudioToMidiClient= (bpm: number) => {
        * channelCount = 1
        * sampleRate = 48000 Hz
        */      
-      const audioTrack = audioStream.current.getAudioTracks()[0];
-      const settings = audioTrack.getSettings(); 
-      console.log("Mic track settings:", settings); 
+      // const audioTrack = audioStream.current.getAudioTracks()[0];
+      // const settings = audioTrack.getSettings(); 
+      // console.log("Mic track settings:", settings); 
+
+      // Accumulate all audio chunks before sending across WebSocket
+      const audioChunks: Blob[] = [];
 
       mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
-          ws.current.send(event.data);
-          console.log(`Sent audio chunk (${event.data.size} bytes)`, 'debug');
+          audioChunks.push(event.data);
+          console.log(`Added audio chunk (${event.data.size} bytes)`, 'debug');
         }
       };
 
       mediaRecorder.current.onstop = () => {
         console.log('Recording stopped.', 'info');
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          const finalAudioBlob = new Blob(audioChunks, { type: "audio/webm" })
+          console.log('Final blob size: ', finalAudioBlob.size);
+
+          // Sends audio to backend for processing
+          ws.current.send(finalAudioBlob);
           ws.current.send("END_OF_AUDIO");
           console.log("Sent END_OF_AUDIO signal.", 'debug');
         }
