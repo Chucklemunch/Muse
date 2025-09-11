@@ -3,99 +3,111 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
-import { NoteSequence } from '@magenta/music';
+import { MusicRNN, NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeyName } from './types';
 import * as Tone from "tone";
+import Magenta from './Magenta';
+import { CONSTANTS } from './utils';
 
 const Muse: React.FC = () => {
 
-// Model Checkpoints for pre-trained MagentaJS Models
-const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
-const BASIC_RNN : ModelKey = "BASIC_RNN"; 
-const MELODY_RNN : ModelKey = "MELODY_RNN";
+  // Model Checkpoints for pre-trained MagentaJS Models
+  const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
+  const BASIC_RNN : ModelKey = "BASIC_RNN"; 
+  const MELODY_RNN : ModelKey = "MELODY_RNN";
 
-// Musical logistics setup
-const [isJamming, setJamming] = useState<boolean>(false);
-const [isRecording, setIsRecording] = useState<boolean>(false);
-const isRecordingRef = useRef(isRecording);
-// Makes sure recording status is updated while jamming callback is running
-useEffect (() => {
-  isRecordingRef.current = isRecording;
-}, [isRecording]);
+  // Musical logistics setup
+  const [isJamming, setJamming] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const isRecordingRef = useRef(isRecording);
+  // Makes sure recording status is updated while jamming callback is running
 
+  useEffect (() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
 
-const [key, setKey] = useState<KeyName>("C");
-const [bpm, setBPM] = useState<number>(120); // Default BPM for app
-const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
-const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
+  // More musical logistics
+  const [key, setKey] = useState<KeyName>("C");
+  const [bpm, setBPM] = useState<number>(120); // Default BPM for app
+  const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
+  const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
-const transport = Tone.getTransport();
+  // Managing Model State
+  const [selectedModel, setSelectedModel] = useState<ModelKey>(BASIC_RNN);
+  const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
+  const [isGeneratingNotes, setIsGeneratingNotes] = useState<boolean>(false);
 
-const KEYS: KeyName[] = [
-  "C", "Db", "D", "Eb", "E",
-  "F", "F#", "G", "Ab", "A",
-  "Bb", "B", "Cm", "C#m", "Dm",
-  "Ebm", "Em", "Fm", "F#m", "Gm",
-  "G#m", "Am", "Bbm", "Bm"
-];
+  // Key to number mapping
+  const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
+  type KeyName = keyof typeof KEY_NUMBERS;
 
-// Metronome used throughout entire deployment
-const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
-const metronomeIdRef = useRef<number | null>(null);
+  const transport = Tone.getTransport();
 
-// Initialize recording states
-let currentMeasure = 0;
+  const KEYS: KeyName[] = [
+    "C", "Db", "D", "Eb", "E",
+    "F", "F#", "G", "Ab", "A",
+    "Bb", "B", "Cm", "C#m", "Dm",
+    "Ebm", "Em", "Fm", "F#m", "Gm",
+    "G#m", "Am", "Bbm", "Bm"
+  ];
 
-// Setup BPM for metronome whenever it is changed in app
-useEffect(() => {
-  // const transport = Tone.getTransport();
-  transport.bpm.value = bpm;
-}, [bpm]);
+  // Metronome used throughout entire deployment
+  const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
+  const metronomeIdRef = useRef<number | null>(null);
 
-useEffect(() => {
-  // const transport = Tone.getTransport();
+  // Initialize recording states
+  let currentMeasure = 0;
 
-  metronomeRef.current = new Tone.MembraneSynth({
-    pitchDecay: 0.02,
-    octaves: 2,
-    envelope: {
-      attack: 0.01,
-      decay: 0.1,
-      sustain: 0
+  // Setup BPM for metronome whenever it is changed in app
+  useEffect(() => {
+    // const transport = Tone.getTransport();
+    transport.bpm.value = bpm;
+  }, [bpm]);
+
+  useEffect(() => {
+    // const transport = Tone.getTransport();
+
+    metronomeRef.current = new Tone.MembraneSynth({
+      pitchDecay: 0.02,
+      octaves: 2,
+      envelope: {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0
+      }
+    }).toDestination();
+      
+    metronomeIdRef.current = transport.scheduleRepeat((time) => {
+      metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+    }, "4n");
+
+    // Clean-up to avoid duplicate metronomes
+    return () => {
+      // Clear metronome id
+      if (metronomeIdRef.current !== null) {
+        transport.clear(metronomeIdRef.current);
+        metronomeIdRef.current = null;
+      }
+
+      // Get rid of metronome
+      metronomeRef.current?.dispose();
     }
-  }).toDestination();
+  });
     
-  metronomeIdRef.current = transport.scheduleRepeat((time) => {
-    metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
-  }, "4n");
 
-  // Clean-up to avoid duplicate metronomes
-  return () => {
-    // Clear metronome id
-    if (metronomeIdRef.current !== null) {
-      transport.clear(metronomeIdRef.current);
-      metronomeIdRef.current = null;
+  const startStopMetronome = async () => {
+    // Get transport
+    // const transport = Tone.getTransport();
+    console.log('is metronome playing? :', metronomePlaying);
+
+    if (!metronomePlaying) {
+      transport.start("+0.1");
+      setMetronomePlaying(true);
+    } else {
+      transport.stop();
+      setMetronomePlaying(false);
     }
-
-    // Get rid of metronome
-    metronomeRef.current?.dispose();
   }
-});
-  
-
-const startStopMetronome = async () => {
-  // Get transport
-  // const transport = Tone.getTransport();
-  console.log('is metronome playing? :', metronomePlaying);
-
-  if (!metronomePlaying) {
-    transport.start("+0.1");
-    setMetronomePlaying(true);
-  } else {
-    transport.stop();
-    setMetronomePlaying(false);
-  }
-}
 
   // Use the custom hooks
   const {
@@ -110,7 +122,7 @@ const startStopMetronome = async () => {
       stopRecording,
   } = useAudioToMidiClient(bpm);
 
-  // const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
+  const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
   
   // const { 
   //   isModelLoading, 
@@ -272,13 +284,13 @@ const startStopMetronome = async () => {
         >
           Stop Jam
         </button>
-        <button
+        {/* <button
           onClick={() => predictNotes(key, bpm)}
-          disabled={isGeneratingNote}
-          style={{ backgroundColor: isGeneratingNote ? '#cccccc' : '#dc3545', color: 'white' }}
+          disabled={isGeneratingNotes}
+          style={{ backgroundColor: isGeneratingNotes ? '#cccccc' : '#dc3545', color: 'white' }}
         >
           Predict and Play Notes
-        </button>
+        </button> */}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
         <button
@@ -289,6 +301,19 @@ const startStopMetronome = async () => {
           {'Process Local File'}
         </button>
       </div>
+
+      <Magenta 
+        key={key}
+        bpm={bpm}
+        modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
+        basicPitchSeq={basicPitchSeq}
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        isModelLoading={isModelLoading}
+        setIsModelLoading={setIsModelLoading}
+        isGeneratingNotes={isGeneratingNotes}
+        setIsGeneratingNotes={setIsGeneratingNotes}
+      />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
 import { CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
-import type { ModelKey } from "./types";
+import type { KeyName, ModelKey } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
@@ -13,23 +13,35 @@ The valid note range depends on the model being used
 Class 0 = no event
 Class 1 = note-off event
 */
-export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq: INoteSequence) => {
-    // Model Checkpoints for pre-trained MagentaJS Models
+export const useMagentaIntegration = (
+    key: KeyName,
+    bpm: number,
+    modelCheckpointURL: string, 
+    basicPitchSeq: INoteSequence,
+    selectedModel: ModelKey,
+    setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
+    isModelLoading: boolean,
+    setIsModelLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    isGeneratingNotes: boolean,
+    setIsGeneratingNotes: React.Dispatch<React.SetStateAction<boolean>>
+) => {
+    // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
 
-    // Managing Model State
-    const [selectedModel, setSelectedModel] = useState<ModelKey>(modelCheckpointURL === CONSTANTS.MELODY_RNN.URL ? "MELODY_RNN" : 
-                                                                modelCheckpointURL === CONSTANTS.CHORD_PITCHES_IMPROV_RNN.URL ? "CHORD_PITCHES_IMPROV_RNN" : "BASIC_RNN");
-    const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
-    const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
+    // // Managing Model State
+    // const [selectedModel, setSelectedModel] = useState<ModelKey>(modelCheckpointURL === CONSTANTS.MELODY_RNN.URL ? "MELODY_RNN" : 
+    //                                                             modelCheckpointURL === CONSTANTS.CHORD_PITCHES_IMPROV_RNN.URL ? "CHORD_PITCHES_IMPROV_RNN" : "BASIC_RNN");
+    // const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
+    // const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
 
-    // Key to number mapping
+    // // Key to number mapping
     const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
     type KeyName = keyof typeof KEY_NUMBERS;
 
 
     // Loads Model When Browser Loads
     useEffect (() => {
+        setSelectedModel(selectedModel);
         const modelURL = CONSTANTS[selectedModel].URL
 
         const loadModel = async () => {
@@ -171,11 +183,11 @@ export const useMagentaIntegration = (modelCheckpointURL: string, basicPitchSeq:
 
 
     return({
-        isModelLoading,
-        isGeneratingNote,
-        selectedModel,
-        setSelectedModel,
+        // isModelLoading,
+        // isGeneratingNotes,
+        // selectedModel,
+        // setSelectedModel,
         predictNotes,
-        playNotes
+        // playNotes
     });
 }
