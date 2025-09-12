@@ -1,15 +1,28 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
+// import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
 import { useMagentaIntegration } from "./useMagentaIntegration";
 import { MusicRNN, NoteSequence } from '@magenta/music';
-import { type ModelKey, type KeyName } from './types';
+import { type ModelKey, type KeySigName } from './types';
 import * as Tone from "tone";
 import Magenta from './Magenta';
 import { CONSTANTS } from './utils';
+// import AudioToNoteSeqClient from './AudioToNoteSeqClient';
+import { useCallback } from 'react';
 
 const Muse: React.FC = () => {
+
+  // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
+  // For local development, it's typically http://localhost:8000
+  const FASTAPI_BASE_URL = "http://localhost:8000";
+  // For WebSocket, convert http:// to ws:// or https:// to wss://
+  const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
+  const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part
+  const FASTAPI_WS_URL = `${FASTAPI_WS_PROTOCOL}${FASTAPI_WS_HOST}/audio_to_note_seq`;
+
+  // Used to hold results from processed API call to basic-pitch model
+  const basicPitchResult = useRef<NoteSequence>(new NoteSequence());
 
   // Model Checkpoints for pre-trained MagentaJS Models
   const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
@@ -17,8 +30,9 @@ const Muse: React.FC = () => {
   const MELODY_RNN : ModelKey = "MELODY_RNN";
 
   // Musical logistics setup
-  const [isJamming, setJamming] = useState<boolean>(false);
+  const [isJamming, setIsJamming] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const isRecordingRef = useRef(isRecording);
   // Makes sure recording status is updated while jamming callback is running
 
@@ -27,7 +41,7 @@ const Muse: React.FC = () => {
   }, [isRecording]);
 
   // More musical logistics
-  const [key, setKey] = useState<KeyName>("C");
+  const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
   const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
   const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
@@ -37,13 +51,16 @@ const Muse: React.FC = () => {
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
   const [isGeneratingNotes, setIsGeneratingNotes] = useState<boolean>(false);
 
-  // Key to number mapping
-  const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
-  type KeyName = keyof typeof KEY_NUMBERS;
+  // Websocket Connection State
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+
+  // // Key to number mapping
+  // const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
+  // type KeyName = keyof typeof KEY_NUMBERS;
 
   const transport = Tone.getTransport();
 
-  const KEYS: KeyName[] = [
+  const KEYS: KeySigName[] = [
     "C", "Db", "D", "Eb", "E",
     "F", "F#", "G", "Ab", "A",
     "Bb", "B", "Cm", "C#m", "Dm",
@@ -66,7 +83,6 @@ const Muse: React.FC = () => {
 
   useEffect(() => {
     // const transport = Tone.getTransport();
-
     metronomeRef.current = new Tone.MembraneSynth({
       pitchDecay: 0.02,
       octaves: 2,
@@ -95,7 +111,7 @@ const Muse: React.FC = () => {
   });
     
 
-  const startStopMetronome = async () => {
+  const startStopMetronome = () => {
     // Get transport
     // const transport = Tone.getTransport();
     console.log('is metronome playing? :', metronomePlaying);
@@ -109,29 +125,145 @@ const Muse: React.FC = () => {
     }
   }
 
-  // Use the custom hooks
-  const {
-      isConnected,
-      // isRecording,
-      isAudioProcessed,
-      basicPitchResult,
-      processLocalAudio,
-      connectWebSocket,
-      disconnectWebSocket,
-      startRecording,
-      stopRecording,
-  } = useAudioToMidiClient(bpm);
 
-  const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
-  
-  // const { 
-  //   isModelLoading, 
-  //   isGeneratingNote,
-  //   selectedModel,
-  //   setSelectedModel,
-  //   predictNotes} = useMagentaIntegration(MELODY_RNN, basicPitchSeq);
+  const basicPitchSeq: NoteSequence = basicPitchResult as unknown as NoteSequence ?? new NoteSequence();
+  // const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
 
-  const startJamming = () => {
+  // Refs to hold mutable objects that don't trigger re-renders
+  // Explicitly type the ref's current value (e.g., WebSocket | null)
+  const ws = useRef<WebSocket | null>(null);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioStream = useRef<MediaStream | null>(null);
+ 
+  // --- WebSocket Connection Logic ---
+  const connectWebSocket = useCallback(() => {
+    console.log('connectWebSocket bpm: ', bpm);
+    // Use the explicitly defined WebSocket URL for FastAPI
+    ws.current = new WebSocket(`${FASTAPI_WS_URL}?bpm=${bpm}`);
+
+    ws.current.onopen = () => {
+      setIsConnected(true);
+      console.log('WebSocket Connected!', 'success', `bpm: ${bpm}`);
+    };
+
+    ws.current.onmessage = (event: MessageEvent) => {
+      console.log('in onmessege');
+      try {
+        basicPitchResult.current = JSON.parse(event.data);
+        console.log('midi json result from basic-pitch')
+        console.log(basicPitchResult.current)
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.log(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
+        console.error('WebSocket message parsing error:', e);
+      } 
+    };
+
+    ws.current.onclose = (event: CloseEvent) => {
+      setIsConnected(false);
+      // setIsRecording(false); // Stop recording if WS closes
+      console.log(`WebSocket Disconnected: Code ${event.code}, Reason: ${event.reason || 'No reason'}`, 'error');
+    };
+
+    ws.current.onerror = (err: Event) => {
+      console.log(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error');
+      console.error('WebSocket Error:', err);
+    };
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.stop();
+      setIsRecording(false);
+      console.log('stopping recording')
+    }
+    if (audioStream.current) {
+      console.log('stopping audioStream')
+      audioStream.current.getTracks().forEach(track => track.stop());
+      audioStream.current = null;
+    }
+  }, []);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.close();
+      stopRecording();
+    }
+  }, [stopRecording]);
+
+  useEffect(() => {
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+      stopRecording();
+    };
+  }, [connectWebSocket, stopRecording]);
+
+  // --- Microphone and Recording Logic ---
+  const startRecording = async (measureDuration: number) => {
+
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.log('Cannot start recording: WebSocket not connected.', 'error');
+      return;
+    }
+
+    try {
+      audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = 'audio/webm;codecs=opus';
+      console.log(`Using MIME type for recording: ${mimeType}`, 'info');
+
+      const options: MediaRecorderOptions = { mimeType: mimeType };
+      mediaRecorder.current = new MediaRecorder(audioStream.current, options);
+
+
+      /**
+      * The following code determined that the default audio recording
+      * settings for my laptop using Chrome were
+      * 
+      * channelCount = 1
+      * sampleRate = 48000 Hz
+      */      
+      // const audioTrack = audioStream.current.getAudioTracks()[0];
+      // const settings = audioTrack.getSettings(); 
+      // console.log("Mic track settings:", settings); 
+
+      // Accumulate all audio chunks before sending across WebSocket
+      const audioChunks: Blob[] = [];
+
+      mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
+          audioChunks.push(event.data);
+          console.log(`Added audio chunk (${event.data.size} bytes)`, 'debug');
+        }
+      };
+
+      mediaRecorder.current.onstop = () => {
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          const finalAudioBlob = new Blob(audioChunks, { type: "audio/webm" })
+          console.log('Final blob size: ', finalAudioBlob.size);
+
+          // Sends audio to backend for processing
+          ws.current.send(finalAudioBlob);
+          ws.current.send("END_OF_AUDIO");
+          console.log("Sent END_OF_AUDIO signal.", 'debug');
+        }
+      };
+
+      // Recording captures one measure at a time
+      mediaRecorder.current.start(measureDuration);
+      setIsRecording(true);
+      console.log('Recording started...', 'success');
+
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.log(`Error accessing microphone: ${errorMessage}`, 'error');
+      console.error('Microphone access error:', err);
+    } 
+  }
+    
+
+  const  startJamming = () => {
     const measureDuration = Tone.Time("1m").toMilliseconds();
     console.log('measureDuration: ', measureDuration);
     
@@ -155,10 +287,12 @@ const Muse: React.FC = () => {
       } else if (
         (currentMeasure > measuresToRecord) && 
         (currentMeasure <= cycleLength / 2) && 
+        // isRecording) {
         isRecordingRef.current) {
         console.log('elif 1');
         stopRecording();
         setIsRecording(false);
+        setIsGeneratingNotes(true);
         console.log('basicPitchResult.current');
         console.log(basicPitchResult.current);
       } else if ((currentMeasure >= cycleLength / 2) && !isRecordingRef.current) {
@@ -210,21 +344,21 @@ const Muse: React.FC = () => {
         />
       </div>
       <div className="flex flex-wrap gap-2">
-        {KEYS.map((keySig) => (
+        {KEYS.map((keySigBut) => (
           <button
-            key={keySig}
+            key={keySigBut}
             style={{ 
-              backgroundColor: (key == keySig) ? '#497ddeff' : '#f6f6f6ff', 
+              backgroundColor: (keySigBut == keySig) ? '#497ddeff' : '#f6f6f6ff', 
               color: 'black',
               margin: 10
             }}
 
             onClick={() => {
-              setKey(keySig);
-              console.log("key change: ", keySig);
+              setKeySig(keySigBut);
+              console.log("key change: ", keySigBut);
             }}
           >
-            {keySig}
+            {keySigBut}
           </button>
       ))}
     </div>
@@ -265,18 +399,18 @@ const Muse: React.FC = () => {
             // const transport = Tone.getTransport();
             console.log('transport time: ', transport.seconds);
             startJamming();
-            setJamming(true);
+            setIsJamming(true);
             startStopMetronome();
           }}
-          disabled={!isConnected || isRecording || isModelLoading}
-          style={{ backgroundColor: (!isConnected || isRecording || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
+          disabled={isJamming || isModelLoading}
+          style={{ backgroundColor: (isJamming) ? '#cccccc' : '#28a745', color: 'white' }}
         >
-          {isRecording ? 'Jamming...' : 'Start Jamming'}
+          {isJamming ? 'Jamming...' : 'Start Jamming'}
         </button>
         <button
           onClick={() => {
             stopRecording();
-            setJamming(false);
+            setIsJamming(false);
             startStopMetronome();
           }}
           disabled={!isJamming}
@@ -284,26 +418,10 @@ const Muse: React.FC = () => {
         >
           Stop Jam
         </button>
-        {/* <button
-          onClick={() => predictNotes(key, bpm)}
-          disabled={isGeneratingNotes}
-          style={{ backgroundColor: isGeneratingNotes ? '#cccccc' : '#dc3545', color: 'white' }}
-        >
-          Predict and Play Notes
-        </button> */}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
-        <button
-          onClick={processLocalAudio}
-          disabled={isAudioProcessed || isModelLoading}
-          style={{ backgroundColor: (isModelLoading) ? '#cccccc' : '#6c757d', color: 'white' }}
-        >
-          {'Process Local File'}
-        </button>
       </div>
 
       <Magenta 
-        key={key}
+        keySig={keySig}
         bpm={bpm}
         modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
         basicPitchSeq={basicPitchSeq}

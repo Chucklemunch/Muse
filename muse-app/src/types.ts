@@ -2,7 +2,7 @@ import type { NoteSequence } from "@magenta/music";
 import { CONSTANTS } from "./utils";
 
 // Defines Key Signature key 
-export type KeyName = keyof typeof CONSTANTS.KEY_NUMBERS;
+export type KeySigName = keyof typeof CONSTANTS.KEY_NUMBERS;
 
 // Defines valid model keys to be just the keys within the CONSTANTS object
 export type ModelKey = keyof typeof CONSTANTS;
@@ -35,7 +35,7 @@ export interface BackendError {
 }
 
 export interface BasicPitchNoteSequenceResponse {
-  filename?: string; // For file upload endpoint
+  filename?: string; // For file upload endpointœ
   source_file?: string; // For local file endpoint
   note_sequence: NoteSequence;
   status?: string; // 'success', 'no_notes_detected'

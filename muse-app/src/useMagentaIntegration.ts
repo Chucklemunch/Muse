@@ -1,10 +1,11 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
 import { CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
-import type { KeyName, ModelKey } from "./types";
+import type { KeySigName, ModelKey } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
 import * as Tone from "tone";
+import type { MagentaProps } from "./Magenta";
 
 /*
 The magenta model makes predictions based on probabilities.
@@ -14,16 +15,28 @@ Class 0 = no event
 Class 1 = note-off event
 */
 export const useMagentaIntegration = (
-    key: KeyName,
-    bpm: number,
-    modelCheckpointURL: string, 
-    basicPitchSeq: INoteSequence,
-    selectedModel: ModelKey,
-    setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
-    isModelLoading: boolean,
-    setIsModelLoading: React.Dispatch<React.SetStateAction<boolean>>,
-    isGeneratingNotes: boolean,
-    setIsGeneratingNotes: React.Dispatch<React.SetStateAction<boolean>>
+    // key: KeyName,
+    // bpm: number,
+    // modelCheckpointURL: string, 
+    // basicPitchSeq: INoteSequence,
+    // selectedModel: ModelKey,
+    // setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
+    // isModelLoading: boolean,
+    // setIsModelLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    // isGeneratingNotes: boolean,
+    // setIsGeneratingNotes: React.Dispatch<React.SetStateAction<boolean>>
+    {
+       keySig,
+       bpm,
+       modelCheckpointURL,
+       basicPitchSeq,
+       selectedModel,
+       setSelectedModel,
+       isModelLoading,
+       setIsModelLoading,
+       isGeneratingNotes,
+       setIsGeneratingNotes
+    }: MagentaProps 
 ) => {
     // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
@@ -36,7 +49,7 @@ export const useMagentaIntegration = (
 
     // // Key to number mapping
     const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
-    type KeyName = keyof typeof KEY_NUMBERS;
+    // type KeySigName = keyof typeof KEY_NUMBERS;
 
 
     // Loads Model When Browser Loads
@@ -76,9 +89,9 @@ export const useMagentaIntegration = (
     }, [selectedModel]);
 
     // Uses ToneJS to play notes returned from Magenta model
-    const playNotes = async (notes : INoteSequence, key: KeyName, bpm : number) => {
+    const playNotes = async (notes : INoteSequence, keySig: KeySigName, bpm : number) => {
         // Interval that sequence needs to be transposed
-        const interval = KEY_NUMBERS[key];
+        const interval = KEY_NUMBERS[keySig];
 
 
         const transport = getTransport();
@@ -136,14 +149,12 @@ export const useMagentaIntegration = (
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictNotes = async (key : KeyName, bpm : number) => {
+    const predictNotes = async (keySig : KeySigName, bpm : number, basicPitchSeq: INoteSequence) => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined");
         }
         if (musicModel.current != null) {
             try {
-                setIsGeneratingNotes(true);
-
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8), selectedModel);
                 
@@ -161,15 +172,15 @@ export const useMagentaIntegration = (
                 console.log("magenta result: ", magentaResult);
                 console.log("magenta result sequence type: ", typeof(magentaResult));
                 
-                setIsGeneratingNotes(false);
+                return magentaResult;
                 
                 // Started audio context
                 // await Tone.start();
                 // console.log("context started");
 
                 // Function call that plays notes as audio
-                console.log('playing magenta seq');
-                await playNotes(magentaResult, key, bpm);
+                // console.log('playing magenta seq');
+                // await playNotes(magentaResult, keySig, bpm);
             }
             catch (err) {
                 console.error("Quantization or continuation error: ", err);
@@ -188,6 +199,6 @@ export const useMagentaIntegration = (
         // selectedModel,
         // setSelectedModel,
         predictNotes,
-        // playNotes
+        playNotes
     });
 }

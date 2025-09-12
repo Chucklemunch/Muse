@@ -1,4 +1,4 @@
-import type { INoteSequence, NoteSequence } from "@magenta/music";
+import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
 import type { ModelKey } from "./types";
 import * as Tone from "tone";
