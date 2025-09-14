@@ -56,6 +56,7 @@ const Magenta: React.FC<MagentaProps> =({
 
     useEffect(() => {
         if (isGeneratingNotes) {
+            console.log('isGeneratingNotes inside useEffect');
             predictAndPlay();
         }
     },[isGeneratingNotes, predictAndPlay]);

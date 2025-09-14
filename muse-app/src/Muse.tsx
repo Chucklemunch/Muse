@@ -34,6 +34,9 @@ const Muse: React.FC = () => {
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const isRecordingRef = useRef(isRecording);
+  const currentMeasure = useRef<number>(-1);
+
+
   // Makes sure recording status is updated while jamming callback is running
 
   useEffect (() => {
@@ -44,6 +47,8 @@ const Muse: React.FC = () => {
   const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
   const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
+  const cycleLength = 2 * measures; // Number of measures in person/AI exchange
+  const measuresToRecord = measures - 1 // Using last measure to send info to basic-pitch
   const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
   // Managing Model State
@@ -53,6 +58,7 @@ const Muse: React.FC = () => {
 
   // Websocket Connection State
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  // const [captureAudio, setCaptureAudio] = useState<boolean>(false);
 
   // // Key to number mapping
   // const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
@@ -73,7 +79,7 @@ const Muse: React.FC = () => {
   const metronomeIdRef = useRef<number | null>(null);
 
   // Initialize recording states
-  let currentMeasure = 0;
+  // let currentMeasure = 0;
 
   // Setup BPM for metronome whenever it is changed in app
   useEffect(() => {
@@ -104,20 +110,16 @@ const Muse: React.FC = () => {
         transport.clear(metronomeIdRef.current);
         metronomeIdRef.current = null;
       }
-
+      console.log('disposing of metronome');
       // Get rid of metronome
       metronomeRef.current?.dispose();
     }
-  });
-    
+  }, [isJamming, transport]);
 
   const startStopMetronome = () => {
     // Get transport
-    // const transport = Tone.getTransport();
-    console.log('is metronome playing? :', metronomePlaying);
-
     if (!metronomePlaying) {
-      transport.start("+0.1");
+      transport.start("+3.0");
       setMetronomePlaying(true);
     } else {
       transport.stop();
@@ -161,7 +163,6 @@ const Muse: React.FC = () => {
 
     ws.current.onclose = (event: CloseEvent) => {
       setIsConnected(false);
-      // setIsRecording(false); // Stop recording if WS closes
       console.log(`WebSocket Disconnected: Code ${event.code}, Reason: ${event.reason || 'No reason'}`, 'error');
     };
 
@@ -200,8 +201,13 @@ const Muse: React.FC = () => {
     };
   }, [connectWebSocket, stopRecording]);
 
-  // --- Microphone and Recording Logic ---
-  const startRecording = async (measureDuration: number) => {
+
+  // Accumulate all audio chunks before sending across WebSocket
+  const audioChunks = useRef<Blob[]>([]);
+  
+  // Logic for recording audio and sending to basic-pitch model
+  const startJamming = async () => {
+    const measureDuration = Tone.Time("1m").toMilliseconds();
 
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
@@ -216,42 +222,24 @@ const Muse: React.FC = () => {
       const options: MediaRecorderOptions = { mimeType: mimeType };
       mediaRecorder.current = new MediaRecorder(audioStream.current, options);
 
-
-      /**
-      * The following code determined that the default audio recording
-      * settings for my laptop using Chrome were
-      * 
-      * channelCount = 1
-      * sampleRate = 48000 Hz
-      */      
-      // const audioTrack = audioStream.current.getAudioTracks()[0];
-      // const settings = audioTrack.getSettings(); 
-      // console.log("Mic track settings:", settings); 
-
-      // Accumulate all audio chunks before sending across WebSocket
-      const audioChunks: Blob[] = [];
-
       mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
-          audioChunks.push(event.data);
-          console.log(`Added audio chunk (${event.data.size} bytes)`, 'debug');
+          if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
+            audioChunks.current.push(event.data);
+            console.log(`Added audio chunk (${event.data.size} bytes: measure ${currentMeasure.current})`, 'debug');
+          } 
         }
       };
 
       mediaRecorder.current.onstop = () => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          const finalAudioBlob = new Blob(audioChunks, { type: "audio/webm" })
-          console.log('Final blob size: ', finalAudioBlob.size);
-
-          // Sends audio to backend for processing
-          ws.current.send(finalAudioBlob);
           ws.current.send("END_OF_AUDIO");
           console.log("Sent END_OF_AUDIO signal.", 'debug');
         }
       };
 
       // Recording captures one measure at a time
-      mediaRecorder.current.start(measureDuration);
+      mediaRecorder.current.start(100);
       setIsRecording(true);
       console.log('Recording started...', 'success');
 
@@ -259,50 +247,44 @@ const Muse: React.FC = () => {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.log(`Error accessing microphone: ${errorMessage}`, 'error');
       console.error('Microphone access error:', err);
-    } 
-  }
-    
+    }
 
-  const  startJamming = () => {
-    const measureDuration = Tone.Time("1m").toMilliseconds();
-    console.log('measureDuration: ', measureDuration);
-    
     // Getting global transport for event scheduling
     const transport = Tone.getTransport();
-    const cycleLength = 2 * measures; // Number of measures in person/AI exchange
-    const measuresToRecord = measures - 1 // Using last measure to send info to basic-pitch
-    console.log('cycleLength: ', cycleLength); 
-    console.log('measuresToRecord: ', measuresToRecord);
 
-    transport.scheduleRepeat(() => {
-      console.log('time: ', transport.seconds);
-      currentMeasure = Math.floor(transport.seconds / (measureDuration / 1000)) % cycleLength;
-      console.log('current measure: ', currentMeasure)
-      console.log('isRecording: ', isRecordingRef.current);
+    // Starts metronome beating
+    transport.scheduleRepeat((time) => {
+      let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
-      if ((currentMeasure <= measuresToRecord) && !isRecordingRef.current) {
-        startRecording(measureDuration); // measureDuration in milliseconds
-        setIsRecording(true);
-        
-      } else if (
-        (currentMeasure > measuresToRecord) && 
-        (currentMeasure <= cycleLength / 2) && 
-        // isRecording) {
-        isRecordingRef.current) {
-        console.log('elif 1');
-        stopRecording();
-        setIsRecording(false);
-        setIsGeneratingNotes(true);
-        console.log('basicPitchResult.current');
-        console.log(basicPitchResult.current);
-      } else if ((currentMeasure >= cycleLength / 2) && !isRecordingRef.current) {
-          console.log('elif 2 ', currentMeasure);
-        
+      console.log('time: ', time);
+      console.log('transport time: ', transport.seconds);
+      console.log('measureDuration: ', measureDuration);
+
+      if (ws.current) {
+        if (currentMeasure.current == 3 && !isAudioSent) {
+
+          const finalAudioBlob = new Blob(audioChunks.current, { type: "audio/webm" })
+          console.log('Final blob size: ', finalAudioBlob.size);
+
+          // Sends audio to backend for processing
+          ws.current.send(finalAudioBlob);
+          ws.current.send("END_OF_AUDIO");
+
+          audioChunks.current = []; // reset audioChunks after sent to backend
+          console.log("Sent END_OF_AUDIO signal for user.", 'debug');
+
+          setIsGeneratingNotes(true);
+          isAudioSent = true;
+        } else {
+          console.log('else')
+          isAudioSent = false;
+        }
       }
+      currentMeasure.current = Math.floor(transport.seconds / (measureDuration / 1000)) % cycleLength;
+      console.log('current measure: ', currentMeasure.current)
     }, "1m");
-
-    transport.start("+0.1");
   };
+
 
   // --- Render UI ---
   return (
