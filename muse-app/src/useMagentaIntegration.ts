@@ -155,6 +155,7 @@ export const useMagentaIntegration = (
         }
         if (musicModel.current != null) {
             try {
+                console.log('predictNotes basicPitchSeq: ', basicPitchSeq)
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8), selectedModel);
                 

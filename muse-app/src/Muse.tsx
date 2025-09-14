@@ -119,7 +119,7 @@ const Muse: React.FC = () => {
   const startStopMetronome = () => {
     // Get transport
     if (!metronomePlaying) {
-      transport.start("+3.0");
+      transport.start("+2.5");
       setMetronomePlaying(true);
     } else {
       transport.stop();
@@ -128,8 +128,6 @@ const Muse: React.FC = () => {
   }
 
 
-  const basicPitchSeq: NoteSequence = basicPitchResult as unknown as NoteSequence ?? new NoteSequence();
-  // const basicPitchSeq: NoteSequence = basicPitchResult.current ?? new NoteSequence();
 
   // Refs to hold mutable objects that don't trigger re-renders
   // Explicitly type the ref's current value (e.g., WebSocket | null)
@@ -154,6 +152,7 @@ const Muse: React.FC = () => {
         basicPitchResult.current = JSON.parse(event.data);
         console.log('midi json result from basic-pitch')
         console.log(basicPitchResult.current)
+        setIsGeneratingNotes(true);
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.log(`Failed to parse message: ${event.data}. Error: ${errorMessage}`, 'error');
@@ -251,37 +250,46 @@ const Muse: React.FC = () => {
 
     // Getting global transport for event scheduling
     const transport = Tone.getTransport();
+      
+
 
     // Starts metronome beating
     transport.scheduleRepeat((time) => {
+
+
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
-      console.log('time: ', time);
-      console.log('transport time: ', transport.seconds);
-      console.log('measureDuration: ', measureDuration);
+      if (currentMeasure.current != -1) {
+        // Offset calculation by one measureDuration to account for count in measure
+        currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
 
-      if (ws.current) {
-        if (currentMeasure.current == 3 && !isAudioSent) {
+        console.log('time: ', time);
+        console.log('transport time: ', transport.seconds);
+        console.log('measureDuration: ', measureDuration);
+        console.log('current measure: ', currentMeasure.current)
+        if (ws.current) {
+          if (currentMeasure.current == 3 && !isAudioSent) {
 
-          const finalAudioBlob = new Blob(audioChunks.current, { type: "audio/webm" })
-          console.log('Final blob size: ', finalAudioBlob.size);
+            const finalAudioBlob = new Blob(audioChunks.current, { type: "audio/webm" })
+            console.log('Final blob size: ', finalAudioBlob.size);
 
-          // Sends audio to backend for processing
-          ws.current.send(finalAudioBlob);
-          ws.current.send("END_OF_AUDIO");
+            // Sends audio to backend for processing
+            ws.current.send(finalAudioBlob);
+            ws.current.send("END_OF_AUDIO");
 
-          audioChunks.current = []; // reset audioChunks after sent to backend
-          console.log("Sent END_OF_AUDIO signal for user.", 'debug');
-
-          setIsGeneratingNotes(true);
-          isAudioSent = true;
-        } else {
-          console.log('else')
-          isAudioSent = false;
-        }
+            audioChunks.current = []; // reset audioChunks after sent to backend
+            console.log("Sent END_OF_AUDIO signal for user.", 'debug');
+            isAudioSent = true;
+          } else {
+            console.log('else')
+            isAudioSent = false;
+          }
+        } 
+      } else {
+        console.log('counting in');
+        console.log('currentMeasure: ', currentMeasure.current);
+        currentMeasure.current = -2;
       }
-      currentMeasure.current = Math.floor(transport.seconds / (measureDuration / 1000)) % cycleLength;
-      console.log('current measure: ', currentMeasure.current)
     }, "1m");
   };
 
@@ -406,7 +414,7 @@ const Muse: React.FC = () => {
         keySig={keySig}
         bpm={bpm}
         modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
-        basicPitchSeq={basicPitchSeq}
+        basicPitchSeq={basicPitchResult.current}
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
         isModelLoading={isModelLoading}
