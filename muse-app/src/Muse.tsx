@@ -1,17 +1,22 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
 import React, { useEffect, useRef, useState } from 'react';
-// import { useAudioToMidiClient } from "./useAudioToNoteSeqClient";
-import { useMagentaIntegration } from "./useMagentaIntegration";
-import { MusicRNN, NoteSequence } from '@magenta/music';
+// import { useMagentaIntegration } from "./useMagentaIntegration";
+import { NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeySigName } from './types';
 import * as Tone from "tone";
 import Magenta from './Magenta';
 import { CONSTANTS } from './utils';
-// import AudioToNoteSeqClient from './AudioToNoteSeqClient';
 import { useCallback } from 'react';
 
 const Muse: React.FC = () => {
+
+  // Setup Audio
+  const sampleRate = 44000; //hz
+  const numChannels = 1;
+  const audioContext = new AudioContext({ sampleRate: sampleRate });
+  const audioChunks = useRef<Float32Array[]>([]); // Accumulates audio before sending to backend
+  let source: MediaStreamAudioSourceNode;
 
   // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
   // For local development, it's typically http://localhost:8000
@@ -201,8 +206,9 @@ const Muse: React.FC = () => {
   }, [connectWebSocket, stopRecording]);
 
 
-  // Accumulate all audio chunks before sending across WebSocket
-  const audioChunks = useRef<Blob[]>([]);
+  const connectAudio = async () => {
+
+  }
   
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
@@ -213,40 +219,67 @@ const Muse: React.FC = () => {
       return;
     }
 
-    try {
-      audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = 'audio/webm;codecs=opus';
-      console.log(`Using MIME type for recording: ${mimeType}`, 'info');
+    //--- Trying different way to capture audio using AudioWorklet
+    await navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((stream) => {
+        source = audioContext.createMediaStreamSource(stream)
+      });
 
-      const options: MediaRecorderOptions = { mimeType: mimeType };
-      mediaRecorder.current = new MediaRecorder(audioStream.current, options);
+    await audioContext.audioWorklet.addModule("/public/AudioProcessor.js");
+    const audioNode = new AudioWorkletNode(audioContext, 'audio-processor'); // Must register processor first with name 'audio-node'
+    source.connect(audioNode);
 
-      mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
-        if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
-          if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
-            audioChunks.current.push(event.data);
-            console.log(`Added audio chunk (${event.data.size} bytes: measure ${currentMeasure.current})`, 'debug');
-          } 
+    audioNode.port.onmessage = (event) => {
+      const channelData = event.data;
+
+      // processing code
+      if (
+        channelData 
+        && channelData[0].length > 0 
+        && ws.current 
+        && ws.current.readyState === WebSocket.OPEN
+      ) {
+        if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
+          audioChunks.current.push(channelData);
+          console.log(`Added audio chunk (${channelData[0].length} bytes: measure ${currentMeasure.current})`, 'debug');
         }
-      };
-
-      mediaRecorder.current.onstop = () => {
-        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          ws.current.send("END_OF_AUDIO");
-          console.log("Sent END_OF_AUDIO signal.", 'debug');
-        }
-      };
-
-      // Recording captures one measure at a time
-      mediaRecorder.current.start(100);
-      setIsRecording(true);
-      console.log('Recording started...', 'success');
-
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.log(`Error accessing microphone: ${errorMessage}`, 'error');
-      console.error('Microphone access error:', err);
+      }
     }
+    // try {
+    //   audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+    //   const mimeType = 'audio/webm;codecs=opus';
+    //   console.log(`Using MIME type for recording: ${mimeType}`, 'info');
+
+    //   const options: MediaRecorderOptions = { mimeType: mimeType };
+    //   mediaRecorder.current = new MediaRecorder(audioStream.current, options);
+
+    //   mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
+    //     if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
+    //       if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
+    //         audioChunks.current.push(event.data);
+    //         // ws.current.send(event.data);
+    //         // console.log(`Added audio chunk (${event.data.size} bytes: measure ${currentMeasure.current})`, 'debug');
+    //       }
+    //     }
+    //   };
+
+    //   mediaRecorder.current.onstop = () => {
+    //     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+    //       ws.current.send("END_OF_AUDIO");
+    //       console.log("Sent END_OF_AUDIO signal.", 'debug');
+    //     }
+    //   };
+
+    //   // Recording captures one measure at a time
+    //   mediaRecorder.current.start(100);
+    //   setIsRecording(true);
+    //   console.log('Recording started...', 'success');
+
+    // } catch (err: unknown) {
+    //   const errorMessage = err instanceof Error ? err.message : String(err);
+    //   console.log(`Error accessing microphone: ${errorMessage}`, 'error');
+    //   console.error('Microphone access error:', err);
+    // }
 
     // Getting global transport for event scheduling
     const transport = Tone.getTransport();
@@ -254,27 +287,33 @@ const Muse: React.FC = () => {
 
 
     // Starts metronome beating
-    transport.scheduleRepeat((time) => {
-
-
+    transport.scheduleRepeat(async (time) => {
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
       if (currentMeasure.current != -1) {
         // Offset calculation by one measureDuration to account for count in measure
         currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
 
-        console.log('time: ', time);
-        console.log('transport time: ', transport.seconds);
-        console.log('measureDuration: ', measureDuration);
         console.log('current measure: ', currentMeasure.current)
         if (ws.current) {
           if (currentMeasure.current == 3 && !isAudioSent) {
+            // Compute length of audioChunks
+            const audioLen = audioChunks.current.reduce((sum, chunk) => sum + chunk.length, 0);
+            console.log('audioLen: ', audioLen);
+            
+            // Create big buffer
+            const mergedAudio = new Float32Array(audioLen);
 
-            const finalAudioBlob = new Blob(audioChunks.current, { type: "audio/webm" })
-            console.log('Final blob size: ', finalAudioBlob.size);
+            // Copy data into buffer 
+            let offset = 0;
+            for (const chunk of audioChunks.current) {
+              mergedAudio.set(chunk, offset);
+              offset += chunk.length;
+            }
 
             // Sends audio to backend for processing
-            ws.current.send(finalAudioBlob);
+            // const buffer = await finalAudioBlob.arrayBuffer()
+            ws.current.send(mergedAudio.buffer);
             ws.current.send("END_OF_AUDIO");
 
             audioChunks.current = []; // reset audioChunks after sent to backend

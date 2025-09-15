@@ -131,17 +131,22 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
             # Processes audio once audio recording stops at the end of certain number of measures
             elif "text" in message:
                 text_message = message["text"]
-                logger.info(f"Received text message: {text_message}")
                 if text_message == "END_OF_AUDIO":
-                    logger.info("End of audio signal received. Closing buffer.")
+                    print("text message received: ", text_message)                    
                     
                     # Read all audio from buffer and convert it to MIDI using basic-pitch model
                     audio_buffer.seek(0) # Reset pointer
+                    audio_head = audio_buffer.read(16)
+                    print('audio head: ', audio_head)
 
-                    # Must convert WEBM audio to PCM
+                    with open('debug_audio.stuff', 'wb') as f:
+                        f.write(audio_head)
+
+                    # Must convert raw audio to PCM
                     final_audio_data = AudioSegment.from_file(
                         audio_buffer, 
-                        format='webm', 
+                        format='raw', 
+                        # format='webm', 
                         frame_rate=SAMPLE_RATE, 
                         channels=CHANNELS, 
                         sample_width=2
