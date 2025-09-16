@@ -221,23 +221,19 @@ const Muse: React.FC = () => {
     const audioNode = new AudioWorkletNode(audioContext, 'audio-processor'); // Must register processor first with name 'audio-node'
     source.connect(audioNode);
 
+
+    // AudioProcessor sends Float32Array objects of length 128
+    // This represents a single channel of audio data
     audioNode.port.onmessage = (event) => {
       const channelData = event.data;
-
       // processing code
       if (
         channelData 
-        && channelData[0].length > 0 
         && ws.current 
         && ws.current.readyState === WebSocket.OPEN
       ) {
         if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
-          // console.log('channelData type: ', typeof(channelData));
-          // console.log(channelData);
-          // audioChunks.current.push(channelData);
-          audioChunks.current.push(...channelData); // Need to unpack channelData because it contains multiple Float32Arrays
-          // console.log(audioChunks.current.length);
-          // console.log(`Added audio chunk (${channelData[0].length} bytes: measure ${currentMeasure.current})`, 'debug');
+          audioChunks.current.push(channelData);
         }
       }
     }
