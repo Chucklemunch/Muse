@@ -136,21 +136,25 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
                     
                     # Read all audio from buffer and convert it to MIDI using basic-pitch model
                     audio_buffer.seek(0) # Reset pointer
-                    audio_head = audio_buffer.read(16)
-                    print('audio head: ', audio_head)
-
-                    with open('debug_audio.stuff', 'wb') as f:
-                        f.write(audio_head)
+                    raw_bytes = audio_buffer.getvalue()
+                    print('raw bytes len: ', len(raw_bytes))
 
                     # Must convert raw audio to PCM
-                    final_audio_data = AudioSegment.from_file(
-                        audio_buffer, 
-                        format='raw', 
-                        # format='webm', 
+                    final_audio_data = AudioSegment(
+                        data=raw_bytes, 
                         frame_rate=SAMPLE_RATE, 
                         channels=CHANNELS, 
-                        sample_width=2
-                    )
+                        sample_width=4
+                    )                    
+                    
+                    # final_audio_data = AudioSegment.from_file(
+                    #     raw_bytes, 
+                    #     format='raw', 
+                    #     # format='webm', 
+                    #     frame_rate=SAMPLE_RATE, 
+                    #     channels=CHANNELS, 
+                    #     sample_width=4
+                    # )
 
                     # Saves audio to file that can be sent to basic-pitch model
                     final_audio_data.export(USER_AUDIO_PATH, format="wav")

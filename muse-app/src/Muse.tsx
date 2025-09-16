@@ -83,9 +83,6 @@ const Muse: React.FC = () => {
   const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
   const metronomeIdRef = useRef<number | null>(null);
 
-  // Initialize recording states
-  // let currentMeasure = 0;
-
   // Setup BPM for metronome whenever it is changed in app
   useEffect(() => {
     // const transport = Tone.getTransport();
@@ -204,11 +201,6 @@ const Muse: React.FC = () => {
       stopRecording();
     };
   }, [connectWebSocket, stopRecording]);
-
-
-  const connectAudio = async () => {
-
-  }
   
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
@@ -240,46 +232,15 @@ const Muse: React.FC = () => {
         && ws.current.readyState === WebSocket.OPEN
       ) {
         if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
-          audioChunks.current.push(channelData);
-          console.log(`Added audio chunk (${channelData[0].length} bytes: measure ${currentMeasure.current})`, 'debug');
+          // console.log('channelData type: ', typeof(channelData));
+          // console.log(channelData);
+          // audioChunks.current.push(channelData);
+          audioChunks.current.push(...channelData); // Need to unpack channelData because it contains multiple Float32Arrays
+          // console.log(audioChunks.current.length);
+          // console.log(`Added audio chunk (${channelData[0].length} bytes: measure ${currentMeasure.current})`, 'debug');
         }
       }
     }
-    // try {
-    //   audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-    //   const mimeType = 'audio/webm;codecs=opus';
-    //   console.log(`Using MIME type for recording: ${mimeType}`, 'info');
-
-    //   const options: MediaRecorderOptions = { mimeType: mimeType };
-    //   mediaRecorder.current = new MediaRecorder(audioStream.current, options);
-
-    //   mediaRecorder.current.ondataavailable = (event: BlobEvent) => {
-    //     if (event.data.size > 0 && ws.current && ws.current.readyState === WebSocket.OPEN) {
-    //       if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
-    //         audioChunks.current.push(event.data);
-    //         // ws.current.send(event.data);
-    //         // console.log(`Added audio chunk (${event.data.size} bytes: measure ${currentMeasure.current})`, 'debug');
-    //       }
-    //     }
-    //   };
-
-    //   mediaRecorder.current.onstop = () => {
-    //     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-    //       ws.current.send("END_OF_AUDIO");
-    //       console.log("Sent END_OF_AUDIO signal.", 'debug');
-    //     }
-    //   };
-
-    //   // Recording captures one measure at a time
-    //   mediaRecorder.current.start(100);
-    //   setIsRecording(true);
-    //   console.log('Recording started...', 'success');
-
-    // } catch (err: unknown) {
-    //   const errorMessage = err instanceof Error ? err.message : String(err);
-    //   console.log(`Error accessing microphone: ${errorMessage}`, 'error');
-    //   console.error('Microphone access error:', err);
-    // }
 
     // Getting global transport for event scheduling
     const transport = Tone.getTransport();
@@ -297,6 +258,9 @@ const Muse: React.FC = () => {
         console.log('current measure: ', currentMeasure.current)
         if (ws.current) {
           if (currentMeasure.current == 3 && !isAudioSent) {
+            console.log('audioChunks.current len: ', audioChunks.current.length);
+            console.log('chunk len: ', audioChunks.current[0]);
+
             // Compute length of audioChunks
             const audioLen = audioChunks.current.reduce((sum, chunk) => sum + chunk.length, 0);
             console.log('audioLen: ', audioLen);
@@ -310,6 +274,8 @@ const Muse: React.FC = () => {
               mergedAudio.set(chunk, offset);
               offset += chunk.length;
             }
+
+            console.log('buffer bytes len: ', mergedAudio.byteLength);
 
             // Sends audio to backend for processing
             // const buffer = await finalAudioBlob.arrayBuffer()
