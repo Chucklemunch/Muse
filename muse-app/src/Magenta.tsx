@@ -46,7 +46,7 @@ const Magenta: React.FC<MagentaProps> =({
 
     // Makes call to Magenta model and plays it's output
     const predictAndPlay = useCallback(async () =>  {
-        console.log('predictAndPlay basicPitchSeq: ', basicPitchSeq);
+        // console.log('predictAndPlay basicPitchSeq: ', basicPitchSeq);
         
         // Gets note generated from Magenta model
         const magentaSeq = await predictNotes(keySig, bpm, basicPitchSeq);

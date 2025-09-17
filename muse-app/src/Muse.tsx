@@ -12,10 +12,12 @@ import { useCallback } from 'react';
 const Muse: React.FC = () => {
 
   // Setup Audio
-  const sampleRate = 44000; //hz
+  const sampleRate = 48000; //hz
   const numChannels = 1;
   const audioContext = new AudioContext({ sampleRate: sampleRate });
-  const audioChunks = useRef<Float32Array[]>([]); // Accumulates audio before sending to backend
+  // const audioContext = new AudioContext();
+  // const audioChunks = useRef<Float32Array[]>([]); // Accumulates audio before sending to backend
+  const audioChunks = useRef<Int16Array[]>([]); // Accumulates audio before sending to backend
   let source: MediaStreamAudioSourceNode;
 
   // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
@@ -151,9 +153,7 @@ const Muse: React.FC = () => {
     ws.current.onmessage = (event: MessageEvent) => {
       console.log('in onmessege');
       try {
-        basicPitchResult.current = JSON.parse(event.data);
-        console.log('midi json result from basic-pitch')
-        console.log(basicPitchResult.current)
+        basicPitchResult.current = JSON.parse(JSON.parse(event.data));
         setIsGeneratingNotes(true);
       } catch (e: unknown) {
         const errorMessage = e instanceof Error ? e.message : String(e);
@@ -212,28 +212,42 @@ const Muse: React.FC = () => {
     }
 
     //--- Trying different way to capture audio using AudioWorklet
-    await navigator.mediaDevices.getUserMedia({ audio: true })
+    await navigator.mediaDevices.getUserMedia({ audio : true })
       .then((stream) => {
         source = audioContext.createMediaStreamSource(stream)
+        const thread = stream.getTracks()[0];
+        console.log('settings: ', thread.getSettings());
+        console.log('audioContext.sampleRate: ', audioContext.sampleRate);
       });
 
     await audioContext.audioWorklet.addModule("/public/AudioProcessor.js");
     const audioNode = new AudioWorkletNode(audioContext, 'audio-processor'); // Must register processor first with name 'audio-node'
+    
     source.connect(audioNode);
 
 
     // AudioProcessor sends Float32Array objects of length 128
     // This represents a single channel of audio data
     audioNode.port.onmessage = (event) => {
-      const channelData = event.data;
+      // event.data is a Float32Array of length 128
+      const float32Chunk = event.data; 
+
+      // --- CONVERSION STEP yanked from Gemini---
+      // Create a new buffer for 16-bit integers
+      const int16Chunk = new Int16Array(float32Chunk.length);
+
+      // Convert each float sample to a 16-bit integer sample
+      for (let i = 0; i < float32Chunk.length; i++) {
+        // Clamp the value between -1 and 1, then scale to the 16-bit range
+        const sample = Math.max(-1, Math.min(1, float32Chunk[i]));
+        int16Chunk[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      }
+
       // processing code
-      if (
-        channelData 
-        && ws.current 
-        && ws.current.readyState === WebSocket.OPEN
-      ) {
-        if (currentMeasure.current <= measuresToRecord && currentMeasure.current >= 0) {
-          audioChunks.current.push(channelData);
+      if (int16Chunk && ws.current && ws.current.readyState === WebSocket.OPEN) {
+        // Sends audio chunks received during measures [0, measuresToRecord)
+        if (currentMeasure.current < measuresToRecord && currentMeasure.current >= 0) {
+          audioChunks.current.push(int16Chunk);
         }
       }
     }
@@ -241,8 +255,6 @@ const Muse: React.FC = () => {
     // Getting global transport for event scheduling
     const transport = Tone.getTransport();
       
-
-
     // Starts metronome beating
     transport.scheduleRepeat(async (time) => {
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
@@ -262,7 +274,10 @@ const Muse: React.FC = () => {
             console.log('audioLen: ', audioLen);
             
             // Create big buffer
-            const mergedAudio = new Float32Array(audioLen);
+            const mergedAudio = new Int16Array(audioLen);
+
+            console.log('mergedAudio len: ', mergedAudio.length);
+            console.log('expected time: ', mergedAudio.length / sampleRate);
 
             // Copy data into buffer 
             let offset = 0;
@@ -274,7 +289,6 @@ const Muse: React.FC = () => {
             console.log('buffer bytes len: ', mergedAudio.byteLength);
 
             // Sends audio to backend for processing
-            // const buffer = await finalAudioBlob.arrayBuffer()
             ws.current.send(mergedAudio.buffer);
             ws.current.send("END_OF_AUDIO");
 

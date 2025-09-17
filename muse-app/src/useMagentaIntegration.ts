@@ -156,22 +156,25 @@ export const useMagentaIntegration = (
         if (musicModel.current != null) {
             try {
                 console.log('predictNotes basicPitchSeq: ', basicPitchSeq)
+                basicPitchSeq.quantizationInfo = { stepsPerQuarter: 4 }
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
-                const quantNoteSeq = transposeToValidPitchRange(quantizeNoteSequence(basicPitchSeq, 8), selectedModel);
+                let quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 4) as INoteSequence;
+                console.log('pre transpose: ', quantNoteSeq);
+                quantNoteSeq = transposeToValidPitchRange(quantNoteSeq, selectedModel);
                 
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps);
-                console.log("quantNoteSeq: ", quantNoteSeq);
+                // console.log("quantNoteSeq: ", quantNoteSeq);
 
                 // Just to try outputting input sequence to audio
-                console.log('playing input seq');
+                // console.log('playing input seq');
                 // await playNotes(quantNoteSeq);
 
 
                 // Get next note predictions from Magenta model
                 const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.5) as INoteSequence;
 
-                console.log("magenta result: ", magentaResult);
-                console.log("magenta result sequence type: ", typeof(magentaResult));
+                // console.log("magenta result: ", magentaResult);
+                // console.log("magenta result sequence type: ", typeof(magentaResult));
                 
                 return magentaResult;
                 

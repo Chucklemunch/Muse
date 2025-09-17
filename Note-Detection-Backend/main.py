@@ -64,7 +64,7 @@ app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR + "/assets"), name
 # Audio information
 USER_AUDIO_PATH = "user_audio.wav"
 SAMPLE_RATE = 48000
-SAMPLE_WIDTH = 4 # PCM16: 16 bits / 8 (bits/byte) = 2
+SAMPLE_WIDTH = 2 # PCM16: 16 bits / 8 (bits/byte) = 2
 CHANNELS = 1
 
 # --- Load Basic-Pitch Model ---
@@ -139,11 +139,9 @@ async def websocket_audio_to_note_seq(websocket: WebSocket, bpm: int=Query(120))
                     raw_bytes = audio_buffer.getvalue()
                     print('raw bytes len: ', len(raw_bytes))
 
-
-                    # Must convert raw audio to PCM
-                    final_audio_data = AudioSegment.from_file(
-                        audio_buffer,
-                        format='f32le',
+                    # Must convert audio to file
+                    final_audio_data = AudioSegment(
+                        data=raw_bytes,
                         frame_rate=SAMPLE_RATE, 
                         channels=CHANNELS, 
                         sample_width=SAMPLE_WIDTH

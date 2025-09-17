@@ -3,6 +3,8 @@ class AudioProcessor extends AudioWorkletProcessor {
         super();
     }
 
+    // Takes input from Audio Context (stereo sound, two duplicate channels)
+    // and sends just a single channel of audio
     process(inputs, outputs, parameters) {
         const input = inputs[0]
         const ch0 = input[0];
@@ -12,7 +14,6 @@ class AudioProcessor extends AudioWorkletProcessor {
         }
         return true;
     }
-
 }
 
 registerProcessor("audio-processor", AudioProcessor);
