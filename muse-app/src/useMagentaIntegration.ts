@@ -1,11 +1,14 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
 import { CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
-import type { KeySigName, ModelKey } from "./types";
+import type { KeySigName } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
 import * as Tone from "tone";
 import type { MagentaProps } from "./Magenta";
+import type { Time } from "tone/build/esm/core/type/Units";
+import { transport } from './ToneService';
+
 
 /*
 The magenta model makes predictions based on probabilities.
@@ -93,14 +96,24 @@ export const useMagentaIntegration = (
         // Interval that sequence needs to be transposed
         const interval = KEY_NUMBERS[keySig];
 
+        // Calculate which measure to start part on
+        // const position = Tone.getTransport().position as string; // Bars:Beats:Sixteenths
+        const position = transport.position as string; // Bars:Beats:Sixteenths
+        const currentBar = parseInt(position.split(":")[0]);
 
-        const transport = getTransport();
+        let nextBar = currentBar + 1;
+        while ((nextBar - 1) % 4 !== 0) {
+            nextBar++;
+        }
+
+        // Define start time based on measure
+        const startTime = `${nextBar}:0:0`;
+        console.log('startTime: ', startTime);
+
+        // const transport = getTransport();
         transport.bpm.value = bpm;
         console.log('bpm in playNotes: ', bpm);
-        console.log(transport);
 
-        // const notes :  INoteSequence = await predictNotes();
-        
         // Make sure note sequence isn't zero length
         if (notes.notes && notes.notes.length === 0) {
             console.log("playNotes: note sequence had zero length");
@@ -131,6 +144,10 @@ export const useMagentaIntegration = (
 
                     part.loop = false;
 
+                    const startBar = Tone.Time(toneJSNotes.time[0]).toBarsBeatsSixteenths().split(":")[0];
+                    console.log('startBar: ', startBar);
+                    
+
                     // Adds notes from to note sequence to Part to be played back
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
                         const noteTime = toneJSNotes.time[i];
@@ -140,8 +157,10 @@ export const useMagentaIntegration = (
                         part.add(noteTime, {notePitch, noteDuration});
                     }
 
-                    part.start("+0.1")
-                    transport.start("+0.1");
+                    console.log('AI part: ', part);
+
+                    // transport.start();
+                    part.start(startTime);
                 },
             }).toDestination();
         }
@@ -156,7 +175,7 @@ export const useMagentaIntegration = (
         if (musicModel.current != null) {
             try {
                 console.log('predictNotes basicPitchSeq: ', basicPitchSeq)
-                basicPitchSeq.quantizationInfo = { stepsPerQuarter: 4 }
+                basicPitchSeq.quantizationInfo = { stepsPerQuarter: 4 };
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 let quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 4) as INoteSequence;
                 console.log('pre transpose: ', quantNoteSeq);
@@ -165,26 +184,14 @@ export const useMagentaIntegration = (
                 console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps);
                 // console.log("quantNoteSeq: ", quantNoteSeq);
 
-                // Just to try outputting input sequence to audio
-                // console.log('playing input seq');
-                // await playNotes(quantNoteSeq);
-
-
                 // Get next note predictions from Magenta model
-                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 128, 0.5) as INoteSequence;
+                // 4 steps/quarter -> 64 steps for 4 measures
+                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.5) as INoteSequence;
 
                 // console.log("magenta result: ", magentaResult);
                 // console.log("magenta result sequence type: ", typeof(magentaResult));
                 
                 return magentaResult;
-                
-                // Started audio context
-                // await Tone.start();
-                // console.log("context started");
-
-                // Function call that plays notes as audio
-                // console.log('playing magenta seq');
-                // await playNotes(magentaResult, keySig, bpm);
             }
             catch (err) {
                 console.error("Quantization or continuation error: ", err);

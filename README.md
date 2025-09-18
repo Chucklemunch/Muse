@@ -42,8 +42,9 @@
 - Transpose sequence output from Magenta model to be in user selected key (DONE)
 - Restructure how audio is recorded so only one message is sent to basic-pitch during recording: Set up audio recording to record user audio and pass it to basic pitch model in time (DONE)
 - Set up microphone connection and a count-in before the recording starts (DONE)
-- **Change audio recording to AudioWorklet to allow for better streaming and pcm**
-- **Debug magenta generation after basic-pitch seq gets sent**
+- Change audio recording to AudioWorklet to allow for better streaming (DONE)
+- Debug magenta generation after basic-pitch seq gets sent (DONE)
+- **Correct creation of ToneJS notes so that they play within desired time frame and in time**
 - Add time signature feature that changes how MIDI gets processed
 - Figure out how to chunk audio by number of beats/notes
 - Make UI cool and pretty

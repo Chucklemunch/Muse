@@ -8,6 +8,7 @@ import * as Tone from "tone";
 import Magenta from './Magenta';
 import { CONSTANTS } from './utils';
 import { useCallback } from 'react';
+import { transport } from './ToneService';
 
 const Muse: React.FC = () => {
 
@@ -37,12 +38,12 @@ const Muse: React.FC = () => {
   const MELODY_RNN : ModelKey = "MELODY_RNN";
 
   // Musical logistics setup
+  const countedIn = useRef<boolean>(false);
   const [isJamming, setIsJamming] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const isRecordingRef = useRef(isRecording);
   const currentMeasure = useRef<number>(-1);
-
 
   // Makes sure recording status is updated while jamming callback is running
 
@@ -71,7 +72,7 @@ const Muse: React.FC = () => {
   // const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
   // type KeyName = keyof typeof KEY_NUMBERS;
 
-  const transport = Tone.getTransport();
+  // const transport = Tone.getTransport();
 
   const KEYS: KeySigName[] = [
     "C", "Db", "D", "Eb", "E",
@@ -92,6 +93,34 @@ const Muse: React.FC = () => {
   }, [bpm]);
 
   useEffect(() => {
+    const countInClicker = new Tone.MembraneSynth({
+      pitchDecay: 0.02,
+      octaves: 2,
+      envelope: {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0
+      }
+    }).toDestination();
+
+    if (!countedIn.current) {
+      // Schedule count-in clicks
+      console.log('count in');
+      for (let i = 0; i < 4; i++) {
+        transport.schedule(time => {
+          if (i === 0) {
+            metronomeRef.current?.triggerAttackRelease("C3", "16n", `0:${i}:0`);
+          } else {
+          metronomeRef.current?.triggerAttackRelease("C2", "16n", `0:${i}:0`);
+          }
+        }, "4n");
+      }
+      countedIn.current = true;
+    }
+
+  }, [countedIn]);
+
+  useEffect(() => {
     // const transport = Tone.getTransport();
     metronomeRef.current = new Tone.MembraneSynth({
       pitchDecay: 0.02,
@@ -104,7 +133,14 @@ const Muse: React.FC = () => {
     }).toDestination();
       
     metronomeIdRef.current = transport.scheduleRepeat((time) => {
-      metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+      const position = Tone.Time(time).toBarsBeatsSixteenths(); 
+      const [bar, quarter, sixteenths] = position.split(":"); 
+
+      if (quarter === "0") {
+        metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
+      } else {
+        metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+      }
     }, "4n");
 
     // Clean-up to avoid duplicate metronomes
@@ -118,12 +154,16 @@ const Muse: React.FC = () => {
       // Get rid of metronome
       metronomeRef.current?.dispose();
     }
-  }, [isJamming, transport]);
+  }, [isJamming]);
 
   const startStopMetronome = () => {
     // Get transport
     if (!metronomePlaying) {
-      transport.start("+2.5");
+      // Make countin play before starting metronome
+      // TODO
+
+
+      transport.start("+2");
       setMetronomePlaying(true);
     } else {
       transport.stop();
@@ -253,57 +293,47 @@ const Muse: React.FC = () => {
     }
 
     // Getting global transport for event scheduling
-    const transport = Tone.getTransport();
+    // const transport = Tone.getTransport();
       
     // Starts metronome beating
     transport.scheduleRepeat(async (time) => {
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
-      if (currentMeasure.current != -1) {
-        // Offset calculation by one measureDuration to account for count in measure
-        currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
+      currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
 
-        console.log('current measure: ', currentMeasure.current)
-        if (ws.current) {
-          if (currentMeasure.current == 3 && !isAudioSent) {
-            console.log('audioChunks.current len: ', audioChunks.current.length);
-            console.log('chunk len: ', audioChunks.current[0]);
+      console.log('current measure: ', currentMeasure.current)
+      if (ws.current) {
+        if (currentMeasure.current == 3 && !isAudioSent) {
+          console.log('audioChunks.current len: ', audioChunks.current.length);
+          console.log('chunk len: ', audioChunks.current[0]);
 
-            // Compute length of audioChunks
-            const audioLen = audioChunks.current.reduce((sum, chunk) => sum + chunk.length, 0);
-            console.log('audioLen: ', audioLen);
-            
-            // Create big buffer
-            const mergedAudio = new Int16Array(audioLen);
+          // Compute length of audioChunks
+          const audioLen = audioChunks.current.reduce((sum, chunk) => sum + chunk.length, 0);
+          console.log('audioLen: ', audioLen);
+          
+          // Create big buffer
+          const mergedAudio = new Int16Array(audioLen);
 
-            console.log('mergedAudio len: ', mergedAudio.length);
-            console.log('expected time: ', mergedAudio.length / sampleRate);
+          console.log('mergedAudio len: ', mergedAudio.length);
+          console.log('expected time: ', mergedAudio.length / sampleRate);
 
-            // Copy data into buffer 
-            let offset = 0;
-            for (const chunk of audioChunks.current) {
-              mergedAudio.set(chunk, offset);
-              offset += chunk.length;
-            }
-
-            console.log('buffer bytes len: ', mergedAudio.byteLength);
-
-            // Sends audio to backend for processing
-            ws.current.send(mergedAudio.buffer);
-            ws.current.send("END_OF_AUDIO");
-
-            audioChunks.current = []; // reset audioChunks after sent to backend
-            console.log("Sent END_OF_AUDIO signal for user.", 'debug');
-            isAudioSent = true;
-          } else {
-            console.log('else')
-            isAudioSent = false;
+          // Copy data into buffer 
+          let offset = 0;
+          for (const chunk of audioChunks.current) {
+            mergedAudio.set(chunk, offset);
+            offset += chunk.length;
           }
+
+          console.log('buffer bytes len: ', mergedAudio.byteLength);
+
+          // Sends audio to backend for processing
+          ws.current.send(mergedAudio.buffer);
+          ws.current.send("END_OF_AUDIO");
+
+          audioChunks.current = []; // reset audioChunks after sent to backend
+          console.log("Sent END_OF_AUDIO signal for user.", 'debug');
+          isAudioSent = true;
         } 
-      } else {
-        console.log('counting in');
-        console.log('currentMeasure: ', currentMeasure.current);
-        currentMeasure.current = -2;
       }
     }, "1m");
   };
