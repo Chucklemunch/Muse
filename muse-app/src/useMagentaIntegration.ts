@@ -4,10 +4,10 @@ import type { KeySigName } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
-import * as Tone from "tone";
+// import * as Tone from "tone";
 import type { MagentaProps } from "./Magenta";
 import type { Time } from "tone/build/esm/core/type/Units";
-import { transport } from './ToneService';
+import { Tone, transport } from './ToneService';
 
 
 /*
@@ -99,16 +99,21 @@ export const useMagentaIntegration = (
         // Calculate which measure to start part on
         // const position = Tone.getTransport().position as string; // Bars:Beats:Sixteenths
         const position = transport.position as string; // Bars:Beats:Sixteenths
+        console.log('transport position (playNotes): ', position);
+        console.log('transport (playNotes): ', transport);
+        console.log('transport loop (playNotes): ', transport.loop);
+        
+
         const currentBar = parseInt(position.split(":")[0]);
 
-        let nextBar = currentBar + 1;
-        while ((nextBar - 1) % 4 !== 0) {
-            nextBar++;
+        let startBar = currentBar + 1;
+        // offset by 2: ignore measure 1 (countin)
+        while ((startBar - 2) % 4 !== 0) {
+            startBar++;
         }
 
         // Define start time based on measure
-        const startTime = `${nextBar}:0:0`;
-        console.log('startTime: ', startTime);
+        console.log('startBar: ', startBar);
 
         // const transport = getTransport();
         transport.bpm.value = bpm;
@@ -119,7 +124,7 @@ export const useMagentaIntegration = (
             console.log("playNotes: note sequence had zero length");
             return;
         } else{
-            const toneJSNotes = magentaToToneSeq(notes, interval);
+            const toneJSNotes = await magentaToToneSeq(notes, interval, startBar);
             console.log("toneJSNotes: ", toneJSNotes);
             const noteLetters: string[] = [];
             toneJSNotes.notes.forEach((note) => {
@@ -144,10 +149,6 @@ export const useMagentaIntegration = (
 
                     part.loop = false;
 
-                    const startBar = Tone.Time(toneJSNotes.time[0]).toBarsBeatsSixteenths().split(":")[0];
-                    console.log('startBar: ', startBar);
-                    
-
                     // Adds notes from to note sequence to Part to be played back
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
                         const noteTime = toneJSNotes.time[i];
@@ -160,7 +161,7 @@ export const useMagentaIntegration = (
                     console.log('AI part: ', part);
 
                     // transport.start();
-                    part.start(startTime);
+                    part.start();
                 },
             }).toDestination();
         }
@@ -186,11 +187,15 @@ export const useMagentaIntegration = (
 
                 // Get next note predictions from Magenta model
                 // 4 steps/quarter -> 64 steps for 4 measures
-                const magentaResult : INoteSequence = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.5) as INoteSequence;
-
-                // console.log("magenta result: ", magentaResult);
-                // console.log("magenta result sequence type: ", typeof(magentaResult));
+                let magentaResultLen = 0;
+                let magentaResult: INoteSequence = new NoteSequence();
                 
+                while (magentaResultLen === 0) {
+                    magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.5) as INoteSequence;
+                    magentaResultLen = magentaResult.notes?.length ?? 0;
+                    console.log('magentaResultLen: ', magentaResultLen);
+                }
+
                 return magentaResult;
             }
             catch (err) {

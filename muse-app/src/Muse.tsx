@@ -4,11 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 // import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeySigName } from './types';
-import * as Tone from "tone";
+// import * as Tone from "tone";
 import Magenta from './Magenta';
 import { CONSTANTS } from './utils';
 import { useCallback } from 'react';
-import { transport } from './ToneService';
+import { Tone, transport } from './ToneService';
 
 const Muse: React.FC = () => {
 
@@ -56,7 +56,7 @@ const Muse: React.FC = () => {
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
   const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
   const cycleLength = 2 * measures; // Number of measures in person/AI exchange
-  const measuresToRecord = measures - 1 // Using last measure to send info to basic-pitch
+  const measuresToRecord = measures // Using last measure to send info to basic-pitch
   const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
   // Managing Model State
@@ -103,21 +103,26 @@ const Muse: React.FC = () => {
       }
     }).toDestination();
 
+    // Schedule count-in clicks
     if (!countedIn.current) {
-      // Schedule count-in clicks
       console.log('count in');
       for (let i = 0; i < 4; i++) {
-        transport.schedule(time => {
+        transport.schedule((time) => {
           if (i === 0) {
-            metronomeRef.current?.triggerAttackRelease("C3", "16n", `0:${i}:0`);
+            metronomeRef.current?.triggerAttackRelease("C3", "16n", `1:${i}:0`);
           } else {
-          metronomeRef.current?.triggerAttackRelease("C2", "16n", `0:${i}:0`);
+          metronomeRef.current?.triggerAttackRelease("C2", "16n", `1:${i}:0`);
           }
         }, "4n");
       }
+
+      // Resetting transport time after count in
+      transport.scheduleOnce((time) =>{
+        transport.position = "1:0:0";
+      }, "2:0:0");
+
       countedIn.current = true;
     }
-
   }, [countedIn]);
 
   useEffect(() => {
@@ -132,16 +137,24 @@ const Muse: React.FC = () => {
       }
     }).toDestination();
       
+    // Metronome scheduling
     metronomeIdRef.current = transport.scheduleRepeat((time) => {
-      const position = Tone.Time(time).toBarsBeatsSixteenths(); 
+      const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
       const [bar, quarter, sixteenths] = position.split(":"); 
-
+      console.log('current positions: ', position);
+      
       if (quarter === "0") {
         metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
       } else {
         metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
       }
     }, "4n");
+
+    // Schedule measure resetting after certain number of measures
+    transport.scheduleRepeat((time) => { 
+      console.log('resetting measures');
+      transport.position = "1:0:0";
+    }, "9:0:0");
 
     // Clean-up to avoid duplicate metronomes
     return () => {
@@ -159,9 +172,7 @@ const Muse: React.FC = () => {
   const startStopMetronome = () => {
     // Get transport
     if (!metronomePlaying) {
-      // Make countin play before starting metronome
-      // TODO
-
+      console.log('transport loop Muse: ', transport.loop);
 
       transport.start("+2");
       setMetronomePlaying(true);
@@ -245,6 +256,8 @@ const Muse: React.FC = () => {
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
     const measureDuration = Tone.Time("1m").toMilliseconds();
+    console.log('transport Muse: ', transport);
+
 
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
@@ -286,7 +299,7 @@ const Muse: React.FC = () => {
       // processing code
       if (int16Chunk && ws.current && ws.current.readyState === WebSocket.OPEN) {
         // Sends audio chunks received during measures [0, measuresToRecord)
-        if (currentMeasure.current < measuresToRecord && currentMeasure.current >= 0) {
+        if (currentMeasure.current < measuresToRecord && currentMeasure.current > 0) {
           audioChunks.current.push(int16Chunk);
         }
       }
@@ -299,11 +312,18 @@ const Muse: React.FC = () => {
     transport.scheduleRepeat(async (time) => {
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
-      currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
+      // currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
+      
+      const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
+
+      const [bar, quarter, sixteenths] = position.split(":"); 
+      currentMeasure.current = parseInt(bar);
 
       console.log('current measure: ', currentMeasure.current)
       if (ws.current) {
-        if (currentMeasure.current == 3 && !isAudioSent) {
+        // if (currentMeasure.current == 3 && !isAudioSent) {
+        if ((currentMeasure.current) % 4 == 0 && !isAudioSent) {
+          console.log('sending chunks on measure: ', currentMeasure.current);
           console.log('audioChunks.current len: ', audioChunks.current.length);
           console.log('chunk len: ', audioChunks.current[0]);
 

@@ -1,7 +1,8 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
 import type { ModelKey } from "./types";
-import * as Tone from "tone";
+import { Tone, transport } from "./ToneService";
+// import * as Tone from "tone";
 
 export const CONSTANTS = {
     "BASIC_RNN" : {
@@ -54,7 +55,7 @@ export const CONSTANTS = {
 export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel: ModelKey): INoteSequence {
 
     const MIN_PITCH = CONSTANTS[selectedModel].MIN_PITCH; 
-    const MAX_PITCH = 127;
+    const MAX_PITCH = CONSTANTS[selectedModel].MAX_PITCH;
 
     if (!noteSeq.notes || noteSeq.notes.length === 0) {
         console.warn('No notes to transpose.');
@@ -93,11 +94,11 @@ export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel
  * 
  * @returns object with notes that can be played by a ToneJS instrument
  */
-export function magentaToToneSeq(noteSeq: INoteSequence, interval: number) {
+export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number, startBar: number) {
     const notes = {
         notes : [] as number[],
-        duration : [] as Time [],
-        time : [] as Time []
+        duration : [] as Time[],
+        time : [] as Time[]
     };
     if (noteSeq.notes && noteSeq.quantizationInfo?.stepsPerQuarter) {
         // const quantizedStepToSeconds = (step: number, stepsPerQuarter: number, bpm: number) => {
@@ -106,8 +107,17 @@ export function magentaToToneSeq(noteSeq: INoteSequence, interval: number) {
         //     return (step / stepsPerQuarter) * secondsPerQuarter;
         // }
 
+        const position = transport.position; 
+        console.log('magentaToToneSeq transport position: ', position);
+
+        let firstBar = -1;
+
         const stepsPerQuarter = noteSeq.quantizationInfo.stepsPerQuarter;
         console.log('stepsPerQuarter: ', stepsPerQuarter);
+
+        // Adjust startTime to align with current place in jam
+        console.log('startBar: ', startBar);
+        console.log('time len: ', notes.time.length);
         
         // Convert NoteSequence into object that can be used by ToneJS
         for (const note of noteSeq.notes) {
@@ -123,16 +133,47 @@ export function magentaToToneSeq(noteSeq: INoteSequence, interval: number) {
                 const durationBeats = (note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter; 
 
                 // Convert beats to bars:beats:sixteenths notation
-                const startTime = Tone.Time(startBeats).toBarsBeatsSixteenths();
+                const startTime: Time = Tone.Time(startBeats).toBarsBeatsSixteenths();
+
+                // Set first bar if needed
+                if (firstBar === -1) {
+                    firstBar = parseInt(startTime.split(":")[0]);
+                }
+
+                // Adjust time to relative times
+                const [bar, quarter, sixteenth] = Tone.Time(startTime).toBarsBeatsSixteenths().split(":");
+                const adjustedTime = `${parseInt(bar) - firstBar + startBar}:${quarter}:${sixteenth}`;
+                console.log('adjustedTime: ', adjustedTime);
+                
                 const durationTime = Tone.Time(durationBeats).toNotation();
 
                 // Add information for each note to notes object
                 notes.notes.push(pitch);  
                 notes.duration.push(durationTime);
-                notes.time.push(startTime);  
+                notes.time.push(adjustedTime);  
 
             }
+            console.log('time len: ', notes.time.length);
         } 
+
+        for (let i = notes.time.length; i > 0; i--) {
+            // Check if notes exceed limit
+            const time: string = notes.time[i-1] as string;
+            console.log('time: ', time);
+
+            // Stop adding notes to part if this is the case
+            if (parseInt(time.split(":")[0]) > startBar + 3) {
+                console.log('excluding note: ', i);
+                notes.notes.pop();
+                notes.duration.pop();
+                notes.time.pop();
+            }
+        }
+            
+
+
+
+
     } else {
         console.log("magentaToToneSeq error: coundn't convert notes");
     }
