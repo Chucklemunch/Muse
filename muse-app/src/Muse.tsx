@@ -6,6 +6,7 @@ import { NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeySigName } from './types';
 // import * as Tone from "tone";
 import Magenta from './Magenta';
+import ChordProgSelector from './ChordProgSelector';
 import { CONSTANTS } from './utils';
 import { useCallback } from 'react';
 import { Tone, transport } from './ToneService';
@@ -54,6 +55,7 @@ const Muse: React.FC = () => {
   // More musical logistics
   const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
+  const [chordProg, setChordProg] = useState<string[]>(["C", "G", "Am", "F"]);
   const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
   const cycleLength = 2 * measures; // Number of measures in person/AI exchange
   const measuresToRecord = measures // Using last measure to send info to basic-pitch
@@ -436,8 +438,8 @@ const Muse: React.FC = () => {
             setIsJamming(true);
             startStopMetronome();
           }}
-          disabled={isJamming || isModelLoading}
-          style={{ backgroundColor: (isJamming) ? '#cccccc' : '#28a745', color: 'white' }}
+          disabled={isJamming || isModelLoading || !isConnected}
+          style={{ backgroundColor: (isJamming || !isConnected) ? '#cccccc' : '#28a745', color: 'white' }}
         >
           {isJamming ? 'Jamming...' : 'Start Jamming'}
         </button>
@@ -452,11 +454,18 @@ const Muse: React.FC = () => {
         >
           Stop Jam
         </button>
+
       </div>
+
+      <ChordProgSelector
+        chordProg={chordProg}
+        setChordProg={setChordProg}
+      />
 
       <Magenta 
         keySig={keySig}
         bpm={bpm}
+        chordProg={chordProg}
         modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
         basicPitchSeq={basicPitchResult.current}
         selectedModel={selectedModel}

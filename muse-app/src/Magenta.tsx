@@ -6,6 +6,7 @@ import { useCallback, useEffect } from "react";
 export interface MagentaProps {
     keySig: KeySigName,
     bpm: number,
+    chordProg: string[],
     modelCheckpointURL: string,
     basicPitchSeq: INoteSequence,
     selectedModel: ModelKey,
@@ -21,6 +22,7 @@ export interface MagentaProps {
 const Magenta: React.FC<MagentaProps> =({ 
     keySig,
     bpm,
+    chordProg,
     modelCheckpointURL,
     basicPitchSeq,
     selectedModel,
@@ -34,6 +36,7 @@ const Magenta: React.FC<MagentaProps> =({
     const {predictNotes, playNotes} = useMagentaIntegration({
         keySig,
         bpm,
+        chordProg,
         modelCheckpointURL,
         basicPitchSeq,
         selectedModel,
@@ -49,7 +52,7 @@ const Magenta: React.FC<MagentaProps> =({
         // console.log('predictAndPlay basicPitchSeq: ', basicPitchSeq);
         
         // Gets note generated from Magenta model
-        const magentaSeq = await predictNotes(keySig, bpm, basicPitchSeq);
+        const magentaSeq = await predictNotes(keySig, bpm, chordProg, basicPitchSeq);
         setIsGeneratingNotes(false);
 
         // Plays notes using Tone.JS

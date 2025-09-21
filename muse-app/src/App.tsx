@@ -6,10 +6,11 @@ function Home() {
   return (
     <>
       <div>
+        <h1>Welcome to Muse</h1>
+
         <img src='public/kermit_prs_copy.png' className="kermit-prs" alt="Kermit PRS Picture" />
         <Muse />
       </div>
-      <h1>Welcome to Muse</h1>
     </>
   )
 }

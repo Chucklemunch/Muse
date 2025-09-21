@@ -31,6 +31,7 @@ export const useMagentaIntegration = (
     {
        keySig,
        bpm,
+       chordProg,
        modelCheckpointURL,
        basicPitchSeq,
        selectedModel,
@@ -44,16 +45,8 @@ export const useMagentaIntegration = (
     // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
 
-    // // Managing Model State
-    // const [selectedModel, setSelectedModel] = useState<ModelKey>(modelCheckpointURL === CONSTANTS.MELODY_RNN.URL ? "MELODY_RNN" : 
-    //                                                             modelCheckpointURL === CONSTANTS.CHORD_PITCHES_IMPROV_RNN.URL ? "CHORD_PITCHES_IMPROV_RNN" : "BASIC_RNN");
-    // const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
-    // const [isGeneratingNote, setIsGeneratingNotes] = useState<boolean>(false);
-
     // // Key to number mapping
     const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
-    // type KeySigName = keyof typeof KEY_NUMBERS;
-
 
     // Loads Model When Browser Loads
     useEffect (() => {
@@ -133,32 +126,39 @@ export const useMagentaIntegration = (
             console.log("noteLetters");
             console.log(noteLetters);
 
-            // Create sampler that plays predicted notes
-            const sampler = new Sampler({
-                urls: {
-                    A1: "A1.mp3",
-                    A2: "A2.mp3",
-                },
-                baseUrl: "https://tonejs.github.io/audio/salamander/",
-                onload: () => {
-                    // Adds notes from to note sequence to transport
-                    for (let i = 0; i < toneJSNotes.notes.length; i++) {
-                        const noteTime = toneJSNotes.time[i];
-                        const noteDuration = toneJSNotes.duration[i];
-                        const notePitch = toneJSNotes.notes[i];
+            // Create instrument that plays predicted notes
+            // const instrument = new Sampler({
+            //     urls: {
+            //         "G2": "G2.mp3",
+            //         "C4": "C4.mp3",
+            //         "D#4": "Ds4.mp3",
+            //         "F#4": "Fs4.mp3",
+            //         "A4": "A4.mp3",
+            //     },
+            //     release: 1,
+            //     baseUrl: "https://tonejs.github.io/audio/salamander/"                
+            // }).toDestination();
 
-                        transport.scheduleOnce((time) => {
-                            sampler.triggerAttackRelease(notePitch, noteDuration, time);
-                        }, noteTime);  
-                    }
-                },
+            const instrument = new Tone.PluckSynth({
+                // Options
             }).toDestination();
+
+            // Adds notes from to note sequence to transport
+            for (let i = 0; i < toneJSNotes.notes.length; i++) {
+                const noteTime = toneJSNotes.time[i];
+                const noteDuration = toneJSNotes.duration[i];
+                const notePitch = toneJSNotes.notes[i];
+
+                transport.scheduleOnce((time) => {
+                    instrument.triggerAttackRelease(notePitch, noteDuration, time);
+                }, noteTime);  
+            }
         }
     }
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictNotes = async (keySig : KeySigName, bpm : number, basicPitchSeq: INoteSequence) => {
+    const predictNotes = async (keySig : KeySigName, bpm : number, chordProg: string[], basicPitchSeq: INoteSequence) => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined");
         }
@@ -180,7 +180,13 @@ export const useMagentaIntegration = (
                 let magentaResult: INoteSequence = new NoteSequence();
                 
                 while (magentaResultLen === 0) {
-                    magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1.5, ["C", "G", "Am", "F"]) as INoteSequence;
+                    // Only used chord progression if proper model is selected
+                    if (selectedModel === "CHORD_PITCHES_IMPROV_RNN") {
+                        console.log('chord prog: ', chordProg);
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.75, chordProg) as INoteSequence;
+                    } else {
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.75) as INoteSequence;
+                    }
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);
                 }

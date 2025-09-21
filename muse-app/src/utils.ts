@@ -101,15 +101,11 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
         time : [] as Time[]
     };
     if (noteSeq.notes && noteSeq.quantizationInfo?.stepsPerQuarter) {
-        // const quantizedStepToSeconds = (step: number, stepsPerQuarter: number, bpm: number) => {
-        //     const quartersPerMinute = bpm;
-        //     const secondsPerQuarter = 60 / quartersPerMinute;
-        //     return (step / stepsPerQuarter) * secondsPerQuarter;
-        // }
-
+        // Get current position in time
         const position = transport.position; 
         console.log('magentaToToneSeq transport position: ', position);
 
+        // Initialize firstBar to identify where model starts playing
         let firstBar = -1;
 
         const stepsPerQuarter = noteSeq.quantizationInfo.stepsPerQuarter;
@@ -168,11 +164,6 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 notes.time.pop();
             }
         }
-            
-
-
-
-
     } else {
         console.log("magentaToToneSeq error: coundn't convert notes");
     }
