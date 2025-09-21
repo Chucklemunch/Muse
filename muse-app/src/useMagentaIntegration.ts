@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { getTransport, Sampler } from "tone";
 // import * as Tone from "tone";
 import type { MagentaProps } from "./Magenta";
-import type { Time } from "tone/build/esm/core/type/Units";
 import { Tone, transport } from './ToneService';
 
 
@@ -29,11 +28,6 @@ export const useMagentaIntegration = (
     // isGeneratingNotes: boolean,
     // setIsGeneratingNotes: React.Dispatch<React.SetStateAction<boolean>>
     {
-       keySig,
-       bpm,
-       chordProg,
-       modelCheckpointURL,
-       basicPitchSeq,
        selectedModel,
        setSelectedModel,
        isModelLoading,
@@ -139,8 +133,39 @@ export const useMagentaIntegration = (
             //     baseUrl: "https://tonejs.github.io/audio/salamander/"                
             // }).toDestination();
 
-            const instrument = new Tone.PluckSynth({
-                // Options
+            const instrument = new Tone.MonoSynth({
+                "volume": -8,
+                "detune": 0,
+                "portamento": 0,
+                "envelope": {
+                    "attack": 0.05,
+                    "attackCurve": "linear",
+                    "decay": 0.3,
+                    "decayCurve": "exponential",
+                    "release": 0.8,
+                    "releaseCurve": "exponential",
+                    "sustain": 0.4
+                },
+                "filter": {
+                    "Q": 1,
+                    "detune": 0,
+                    "frequency": 0,
+                    "gain": 0,
+                    "rolloff": -12,
+                    "type": "lowpass"
+                },
+                "filterEnvelope": {
+                    "attack": 0.001,
+                    "attackCurve": "linear",
+                    "decay": 0.2,
+                    "decayCurve": "exponential",
+                    "release": 0.2,
+                    "releaseCurve": "exponential",
+                    "sustain": 0.1,
+                    "baseFrequency": 300,
+                    "exponent": 2,
+                    "octaves": 4
+                }
             }).toDestination();
 
             // Adds notes from to note sequence to transport
@@ -158,7 +183,7 @@ export const useMagentaIntegration = (
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictNotes = async (keySig : KeySigName, bpm : number, chordProg: string[], basicPitchSeq: INoteSequence) => {
+    const predictNotes = async (chordProg: string[], basicPitchSeq: INoteSequence) => {
         if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
             console.log("basicPitchSeq is empty or undefined");
         }

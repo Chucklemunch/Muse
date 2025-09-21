@@ -44,7 +44,7 @@
 - Set up microphone connection and a count-in before the recording starts (DONE)
 - Change audio recording to AudioWorklet to allow for better streaming (DONE)
 - Debug magenta generation after basic-pitch seq gets sent (DONE)
-- **Correct creation of ToneJS notes so that they play within desired time frame and in time**
+- Correct creation of ToneJS notes so that they play within desired time frame and in time (DONE)
+- Figure out how to chunk audio by number of beats/notes (DONE)
 - Add time signature feature that changes how MIDI gets processed
-- Figure out how to chunk audio by number of beats/notes
 - Make UI cool and pretty

@@ -7,9 +7,12 @@ import { type ModelKey, type KeySigName } from './types';
 // import * as Tone from "tone";
 import Magenta from './Magenta';
 import ChordProgSelector from './ChordProgSelector';
+import TempoControl from './TempoControl';
+import KeySigSelector from './KeySigSelector';
 import { CONSTANTS } from './utils';
 import { useCallback } from 'react';
 import { Tone, transport } from './ToneService';
+import BeatFlasher from './BeatFlasher';
 
 const Muse: React.FC = () => {
 
@@ -45,6 +48,7 @@ const Muse: React.FC = () => {
   const [isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const isRecordingRef = useRef(isRecording);
   const currentMeasure = useRef<number>(-1);
+  const [currentBeat, setCurrentBeat] = useState<number>(0);
 
   // Makes sure recording status is updated while jamming callback is running
 
@@ -100,10 +104,12 @@ const Muse: React.FC = () => {
       console.log('count in');
       for (let i = 0; i < 4; i++) {
         transport.schedule((time) => {
+          setCurrentBeat(i+1);
+
           if (i === 0) {
             metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
           } else {
-          metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+            metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
           }
         }, "4n");
       }
@@ -133,6 +139,7 @@ const Muse: React.FC = () => {
       const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
       const quarter = position.split(":")[1]; 
       // console.log('current positions: ', position);
+      setCurrentBeat(parseInt(quarter)+1);
       
       if (quarter === "0") {
         metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
@@ -244,6 +251,8 @@ const Muse: React.FC = () => {
   
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
+    // Connect websocket
+    connectWebSocket();
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
@@ -342,62 +351,22 @@ const Muse: React.FC = () => {
 
   // --- Render UI ---
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '800px', margin: '20px auto', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+    <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '800px', margin: 'auto', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
       <h1 style={{ color: '#2c3e50', textAlign: 'center', marginBottom: '20px' }}>AI Jamming App</h1>
       <p style={{ textAlign: 'center', marginBottom: '30px', color: '#555' }}>
         Transcribe your audio to MIDI, predict continuations with AI, and play the result.
       </p>
-      <div>
-        <button onClick={() => {
-            const newBPM = parseInt(document.getElementById('tempoInput')?.value);
-              setBPM(newBPM);
-              console.log('tempo updated to : ', newBPM);
-        }}>
-            Set Tempo
-        </button>
-        <input
-          type="number"
-          id="tempoInput"
-          defaultValue={bpm}
-          min="20"
-          max="300"
-        />
-      </div>
-      <div>
-        <button onClick={() => {
-            const newMeasures = parseInt(document.getElementById('measureInput')?.value);
-              setMeasures(newMeasures);
-              console.log('measures updated to : ', newMeasures);
-          }}>
-            Measure to Trade
-        </button>
-        <input
-          type="number"
-          id="measureInput"
-          defaultValue={measures}
-          min="20"
-          max="300"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {KEYS.map((keySigBut) => (
-          <button
-            key={keySigBut}
-            style={{ 
-              backgroundColor: (keySigBut == keySig) ? '#497ddeff' : '#f6f6f6ff', 
-              color: 'black',
-              margin: 10
-            }}
-
-            onClick={() => {
-              setKeySig(keySigBut);
-              console.log("key change: ", keySigBut);
-            }}
-          >
-            {keySigBut}
-          </button>
-      ))}
-    </div>
+      <TempoControl 
+        tempo={bpm}
+        setTempo={setBPM}
+      />
+      <BeatFlasher 
+        currentBeat={currentBeat}
+      />
+      <KeySigSelector 
+        keySig={keySig}
+        setKeySig={setKeySig}
+      />
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
         <button
           onClick={connectWebSocket}
@@ -446,6 +415,7 @@ const Muse: React.FC = () => {
         <button
           onClick={() => {
             stopRecording();
+            disconnectWebSocket();
             setIsJamming(false);
             startStopMetronome();
           }}

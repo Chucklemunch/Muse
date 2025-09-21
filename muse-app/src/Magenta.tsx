@@ -4,11 +4,11 @@ import type { KeySigName, ModelKey } from "./types";
 import { useCallback, useEffect } from "react";
 
 export interface MagentaProps {
-    keySig: KeySigName,
-    bpm: number,
-    chordProg: string[],
-    modelCheckpointURL: string,
-    basicPitchSeq: INoteSequence,
+    keySig?: KeySigName,
+    bpm?: number,
+    chordProg?: string[],
+    modelCheckpointURL?: string,
+    basicPitchSeq?: INoteSequence,
     selectedModel: ModelKey,
     setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
     isModelLoading: boolean,
@@ -34,11 +34,6 @@ const Magenta: React.FC<MagentaProps> =({
 }: MagentaProps) => {
 
     const {predictNotes, playNotes} = useMagentaIntegration({
-        keySig,
-        bpm,
-        chordProg,
-        modelCheckpointURL,
-        basicPitchSeq,
         selectedModel,
         setSelectedModel,
         isModelLoading,
@@ -52,7 +47,7 @@ const Magenta: React.FC<MagentaProps> =({
         // console.log('predictAndPlay basicPitchSeq: ', basicPitchSeq);
         
         // Gets note generated from Magenta model
-        const magentaSeq = await predictNotes(keySig, bpm, chordProg, basicPitchSeq);
+        const magentaSeq = await predictNotes(chordProg, basicPitchSeq);
         setIsGeneratingNotes(false);
 
         // Plays notes using Tone.JS
@@ -67,13 +62,13 @@ const Magenta: React.FC<MagentaProps> =({
     },[isGeneratingNotes, predictAndPlay]);
 
 
-    console.log('keySig: ', keySig);
-    console.log('bpm: ', bpm,);
-    console.log('modelCheckpointURL: ', modelCheckpointURL);
-    console.log('basicPitchSeq: ', basicPitchSeq);
-    console.log('selectedModel: ', selectedModel);
-    console.log('isModelLoading: ', isModelLoading);
-    console.log('isGeneratingNotes: ', isGeneratingNotes);
+    // console.log('keySig: ', keySig);
+    // console.log('bpm: ', bpm,);
+    // console.log('modelCheckpointURL: ', modelCheckpointURL);
+    // console.log('basicPitchSeq: ', basicPitchSeq);
+    // console.log('selectedModel: ', selectedModel);
+    // console.log('isModelLoading: ', isModelLoading);
+    // console.log('isGeneratingNotes: ', isGeneratingNotes);
 
     return null;
 }
