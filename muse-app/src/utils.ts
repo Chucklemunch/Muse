@@ -141,7 +141,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 }
 
                 // Adjust time to relative times
-                const [bar, quarter, sixteenth] = Tone.Time(startTime).toBarsBeatsSixteenths().split(":");
+                const [bar, quarter, sixteenth] = startTime.split(":");
                 const adjustedTime = `${parseInt(bar) - firstBar + startBar}:${quarter}:${sixteenth}`;
                 console.log('adjustedTime: ', adjustedTime);
                 
@@ -153,7 +153,6 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 notes.time.push(adjustedTime);  
 
             }
-            console.log('time len: ', notes.time.length);
         } 
 
         for (let i = notes.time.length; i > 0; i--) {
@@ -162,7 +161,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
             console.log('time: ', time);
 
             // Stop adding notes to part if this is the case
-            if (parseInt(time.split(":")[0]) > startBar + 3) {
+            if (parseInt(time.split(":")[0]) > 8) {
                 console.log('excluding note: ', i);
                 notes.notes.pop();
                 notes.duration.pop();

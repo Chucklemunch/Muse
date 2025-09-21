@@ -93,34 +93,23 @@ const Muse: React.FC = () => {
   }, [bpm]);
 
   useEffect(() => {
-    const countInClicker = new Tone.MembraneSynth({
-      pitchDecay: 0.02,
-      octaves: 2,
-      envelope: {
-        attack: 0.01,
-        decay: 0.1,
-        sustain: 0
-      }
-    }).toDestination();
-
     // Schedule count-in clicks
     if (!countedIn.current) {
       console.log('count in');
       for (let i = 0; i < 4; i++) {
         transport.schedule((time) => {
           if (i === 0) {
-            metronomeRef.current?.triggerAttackRelease("C3", "16n", `1:${i}:0`);
+            metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
           } else {
-          metronomeRef.current?.triggerAttackRelease("C2", "16n", `1:${i}:0`);
+          metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
           }
         }, "4n");
       }
 
       // Resetting transport time after count in
-      transport.scheduleOnce((time) =>{
+      transport.scheduleOnce(() =>{
         transport.position = "1:0:0";
       }, "2:0:0");
-
       countedIn.current = true;
     }
   }, [countedIn]);
@@ -140,8 +129,8 @@ const Muse: React.FC = () => {
     // Metronome scheduling
     metronomeIdRef.current = transport.scheduleRepeat((time) => {
       const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
-      const [bar, quarter, sixteenths] = position.split(":"); 
-      console.log('current positions: ', position);
+      const quarter = position.split(":")[1]; 
+      // console.log('current positions: ', position);
       
       if (quarter === "0") {
         metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
@@ -151,7 +140,7 @@ const Muse: React.FC = () => {
     }, "4n");
 
     // Schedule measure resetting after certain number of measures
-    transport.scheduleRepeat((time) => { 
+    transport.scheduleRepeat(() => { 
       console.log('resetting measures');
       transport.position = "1:0:0";
     }, "9:0:0");
@@ -172,8 +161,6 @@ const Muse: React.FC = () => {
   const startStopMetronome = () => {
     // Get transport
     if (!metronomePlaying) {
-      console.log('transport loop Muse: ', transport.loop);
-
       transport.start("+2");
       setMetronomePlaying(true);
     } else {
@@ -255,10 +242,6 @@ const Muse: React.FC = () => {
   
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
-    const measureDuration = Tone.Time("1m").toMilliseconds();
-    console.log('transport Muse: ', transport);
-
-
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
@@ -305,18 +288,14 @@ const Muse: React.FC = () => {
       }
     }
 
-    // Getting global transport for event scheduling
-    // const transport = Tone.getTransport();
-      
     // Starts metronome beating
-    transport.scheduleRepeat(async (time) => {
+    transport.scheduleRepeat(async () => {
       let isAudioSent = false; // Keeps track of if user audio has been sent to backend
 
-      // currentMeasure.current = Math.floor((transport.seconds - (measureDuration/1000)) / (measureDuration/1000)) % cycleLength;
-      
+      // Gets current state of transport 
       const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
 
-      const [bar, quarter, sixteenths] = position.split(":"); 
+      const bar = position.split(":")[0]; 
       currentMeasure.current = parseInt(bar);
 
       console.log('current measure: ', currentMeasure.current)

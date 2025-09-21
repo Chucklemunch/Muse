@@ -108,7 +108,7 @@ export const useMagentaIntegration = (
 
         let startBar = currentBar + 1;
         // offset by 2: ignore measure 1 (countin)
-        while ((startBar - 2) % 4 !== 0) {
+        while ((startBar - 1) % 4 !== 0) {
             startBar++;
         }
 
@@ -141,27 +141,16 @@ export const useMagentaIntegration = (
                 },
                 baseUrl: "https://tonejs.github.io/audio/salamander/",
                 onload: () => {
-
-                    // Creating empty part
-                    const part = new Tone.Part((time, value) => {
-                        sampler.triggerAttackRelease(value.notePitch, value.noteDuration, time);
-                    });
-
-                    part.loop = false;
-
-                    // Adds notes from to note sequence to Part to be played back
+                    // Adds notes from to note sequence to transport
                     for (let i = 0; i < toneJSNotes.notes.length; i++) {
                         const noteTime = toneJSNotes.time[i];
                         const noteDuration = toneJSNotes.duration[i];
                         const notePitch = toneJSNotes.notes[i];
-                        
-                        part.add(noteTime, {notePitch, noteDuration});
+
+                        transport.scheduleOnce((time) => {
+                            sampler.triggerAttackRelease(notePitch, noteDuration, time);
+                        }, noteTime);  
                     }
-
-                    console.log('AI part: ', part);
-
-                    // transport.start();
-                    part.start();
                 },
             }).toDestination();
         }
@@ -191,7 +180,7 @@ export const useMagentaIntegration = (
                 let magentaResult: INoteSequence = new NoteSequence();
                 
                 while (magentaResultLen === 0) {
-                    magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.5) as INoteSequence;
+                    magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1.5, ["C", "G", "Am", "F"]) as INoteSequence;
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);
                 }
