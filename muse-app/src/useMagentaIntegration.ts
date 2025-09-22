@@ -124,6 +124,8 @@ export const useMagentaIntegration = (
             const instrument = new Sampler({
                 urls: {
                     C4 : "C4.mp3",
+                    D4 : "D4.mp3",
+                    E4 : "C4.mp3",
                 },
                 release: 1,
                 baseUrl : "/samples/",
