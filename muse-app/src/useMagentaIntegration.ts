@@ -121,52 +121,55 @@ export const useMagentaIntegration = (
             console.log(noteLetters);
 
             // Create instrument that plays predicted notes
-            // const instrument = new Sampler({
-            //     urls: {
-            //         "G2": "G2.mp3",
-            //         "C4": "C4.mp3",
-            //         "D#4": "Ds4.mp3",
-            //         "F#4": "Fs4.mp3",
-            //         "A4": "A4.mp3",
-            //     },
-            //     release: 1,
-            //     baseUrl: "https://tonejs.github.io/audio/salamander/"                
-            // }).toDestination();
-
-            const instrument = new Tone.MonoSynth({
-                "volume": -8,
-                "detune": 0,
-                "portamento": 0,
-                "envelope": {
-                    "attack": 0.05,
-                    "attackCurve": "linear",
-                    "decay": 0.3,
-                    "decayCurve": "exponential",
-                    "release": 0.8,
-                    "releaseCurve": "exponential",
-                    "sustain": 0.4
+            const instrument = new Sampler({
+                urls: {
+                    C4 : "C4.mp3",
                 },
-                "filter": {
-                    "Q": 1,
-                    "detune": 0,
-                    "frequency": 0,
-                    "gain": 0,
-                    "rolloff": -12,
-                    "type": "lowpass"
-                },
-                "filterEnvelope": {
-                    "attack": 0.001,
-                    "attackCurve": "linear",
-                    "decay": 0.2,
-                    "decayCurve": "exponential",
-                    "release": 0.2,
-                    "releaseCurve": "exponential",
-                    "sustain": 0.1,
-                    "baseFrequency": 300,
-                    "exponent": 2,
-                    "octaves": 4
+                release: 1,
+                baseUrl : "/samples/",
+                onload: () => {
+                    // This code will only run AFTER "C4.mp3" is loaded and ready.
+                    console.log('Sampler is loaded and can now be played.');
+                    
+                    // Now it is safe to trigger the sound.
+                    instrument.triggerAttackRelease("C4", "8n");
                 }
             }).toDestination();
+
+            // const instrument = new Tone.MonoSynth({
+            //     "volume": -8,
+            //     "detune": 0,
+            //     "portamento": 0,
+            //     "envelope": {
+            //         "attack": 0.05,
+            //         "attackCurve": "linear",
+            //         "decay": 0.3,
+            //         "decayCurve": "exponential",
+            //         "release": 0.8,
+            //         "releaseCurve": "exponential",
+            //         "sustain": 0.4
+            //     },
+            //     "filter": {
+            //         "Q": 1,
+            //         "detune": 0,
+            //         "frequency": 0,
+            //         "gain": 0,
+            //         "rolloff": -12,
+            //         "type": "lowpass"
+            //     },
+            //     "filterEnvelope": {
+            //         "attack": 0.001,
+            //         "attackCurve": "linear",
+            //         "decay": 0.2,
+            //         "decayCurve": "exponential",
+            //         "release": 0.2,
+            //         "releaseCurve": "exponential",
+            //         "sustain": 0.1,
+            //         "baseFrequency": 300,
+            //         "exponent": 2,
+            //         "octaves": 4
+            //     }
+            // }).toDestination();
 
             // Adds notes from to note sequence to transport
             for (let i = 0; i < toneJSNotes.notes.length; i++) {

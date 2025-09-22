@@ -251,8 +251,6 @@ const Muse: React.FC = () => {
   
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
-    // Connect websocket
-    connectWebSocket();
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
@@ -415,7 +413,6 @@ const Muse: React.FC = () => {
         <button
           onClick={() => {
             stopRecording();
-            disconnectWebSocket();
             setIsJamming(false);
             startStopMetronome();
           }}
