@@ -1,6 +1,5 @@
 # Muse
-- What: A web app that listens to the user’s playing (start with piano, figure out guitar later)(via mic) and shows real-time visual feedback on scales, keys, and suggested note transitions for improvisation.
-- Unique angle: Uses ML to analyze note sequences and suggests "next-tone probabilities" like predictive text, but for solos.
+- What: A web app that can jam along with the user
 
 ### Environments
 - FastAPI backend is run in a miniconda environment that uses python 3.10
@@ -8,12 +7,11 @@
 
 ### Core Features
 - Live audio input
-- Converts audio to MIDI
-- Integration with LLM API (maybe ChatGPT) to generate detailed note and rhythm suggestions for the next measures
-- Next note(s) suggestions
+- Uses Spotify's Basic Pitch Model to convert raw audio to MIDI
+- Uses MagentaJS's MusicRNN models to generate a note sequence to be output as computer audio
+- Allows user to "trade" bars with an AI.
 
-### Potential Tools/Datasets/Resources
-- [Librosa](https://librosa.org/doc/latest/index.html) (Python) for audio analysis in the backend
+### Tools/Resources
 - [Spotify Basic Pitch](https://basicpitch.spotify.com/about) converts audio files to MIDI
 - [Google Magenta Music Models](https://magenta.withgoogle.com/magenta-realtime)
 - [MagentaJS](https://github.com/magenta/magenta-js) for MIDI to music production in frontend after backen processing with basic-pitch

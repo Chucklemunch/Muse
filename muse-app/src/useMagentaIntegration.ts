@@ -1,9 +1,8 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
-import { CONSTANTS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
+import { CONSTANTS, KEY_NUMBERS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
 import type { KeySigName } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
-import { useEffect, useRef, useState } from "react";
-import { getTransport, Sampler } from "tone";
+import { useEffect, useRef } from "react";
 // import * as Tone from "tone";
 import type { MagentaProps } from "./Magenta";
 import { Tone, transport } from './ToneService';
@@ -32,15 +31,18 @@ export const useMagentaIntegration = (
        setSelectedModel,
        isModelLoading,
        setIsModelLoading,
-       isGeneratingNotes,
-       setIsGeneratingNotes
+    //    isGeneratingNotes,
+    //    setIsGeneratingNotes,
+    //    instrument,
+    //    chordProg,
+    //    basicPitchSeq
     }: MagentaProps 
 ) => {
     // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
 
     // // Key to number mapping
-    const KEY_NUMBERS = CONSTANTS.KEY_NUMBERS;
+    // const KEY_NUMBERS = KEY_NUMBERS;
 
     // Loads Model When Browser Loads
     useEffect (() => {
@@ -79,7 +81,7 @@ export const useMagentaIntegration = (
     }, [selectedModel]);
 
     // Uses ToneJS to play notes returned from Magenta model
-    const playNotes = async (notes : INoteSequence, keySig: KeySigName, bpm : number) => {
+    const playNotes = async (notes : INoteSequence, keySig: KeySigName, bpm : number, instrument: Tone.Sampler | Tone.Synth) => {
         // Interval that sequence needs to be transposed
         const interval = KEY_NUMBERS[keySig];
 
@@ -120,59 +122,13 @@ export const useMagentaIntegration = (
             console.log("noteLetters");
             console.log(noteLetters);
 
-            // Create instrument that plays predicted notes
-            const instrument = new Sampler({
-                urls: {
-                    C4 : "C4.mp3",
-                    D4 : "D4.mp3",
-                    E4 : "C4.mp3",
-                },
-                release: 1,
-                baseUrl : "/samples/",
-                onload: () => {
-                    // This code will only run AFTER "C4.mp3" is loaded and ready.
-                    console.log('Sampler is loaded and can now be played.');
-                    
-                    // Now it is safe to trigger the sound.
-                    instrument.triggerAttackRelease("C4", "8n");
-                }
-            }).toDestination();
-
-            // const instrument = new Tone.MonoSynth({
-            //     "volume": -8,
-            //     "detune": 0,
-            //     "portamento": 0,
-            //     "envelope": {
-            //         "attack": 0.05,
-            //         "attackCurve": "linear",
-            //         "decay": 0.3,
-            //         "decayCurve": "exponential",
-            //         "release": 0.8,
-            //         "releaseCurve": "exponential",
-            //         "sustain": 0.4
-            //     },
-            //     "filter": {
-            //         "Q": 1,
-            //         "detune": 0,
-            //         "frequency": 0,
-            //         "gain": 0,
-            //         "rolloff": -12,
-            //         "type": "lowpass"
-            //     },
-            //     "filterEnvelope": {
-            //         "attack": 0.001,
-            //         "attackCurve": "linear",
-            //         "decay": 0.2,
-            //         "decayCurve": "exponential",
-            //         "release": 0.2,
-            //         "releaseCurve": "exponential",
-            //         "sustain": 0.1,
-            //         "baseFrequency": 300,
-            //         "exponent": 2,
-            //         "octaves": 4
-            //     }
+            // // Create instrument that plays predicted notes
+            // const instrument = new Tone.Synth({
+            //     volume: 5
             // }).toDestination();
 
+            console.log('sampler: ', instrument);
+            
             // Adds notes from to note sequence to transport
             for (let i = 0; i < toneJSNotes.notes.length; i++) {
                 const noteTime = toneJSNotes.time[i];

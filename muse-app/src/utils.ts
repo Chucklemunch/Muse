@@ -1,10 +1,14 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
-import type { ModelKey } from "./types";
+import type { ModelKey, ModelConfig } from "./types";
 import { Tone, transport } from "./ToneService";
 // import * as Tone from "tone";
 
-export const CONSTANTS = {
+export const CONSTANTS : {
+    BASIC_RNN: ModelConfig;
+    MELODY_RNN: ModelConfig;
+    CHORD_PITCHES_IMPROV_RNN: ModelConfig;
+} = {
     "BASIC_RNN" : {
         MIN_PITCH : 48,
         MAX_PITCH : 83,
@@ -19,9 +23,10 @@ export const CONSTANTS = {
         MIN_PITCH : 48,
         MAX_PITCH : 83,
         URL : "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv",
+    }
+}
 
-    },
-    "KEY_NUMBERS" : {
+export const KEY_NUMBERS = {
         "C" : 0,
         "Db" : 1,
         "D" : 2,
@@ -47,15 +52,13 @@ export const CONSTANTS = {
         "Bbm" : 1,
         "Bm" : 2,
         
-    }
 }
 
 
 
 export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel: ModelKey): INoteSequence {
 
-    const MIN_PITCH = CONSTANTS[selectedModel].MIN_PITCH; 
-    const MAX_PITCH = CONSTANTS[selectedModel].MAX_PITCH;
+    const {MIN_PITCH, MAX_PITCH } = CONSTANTS[selectedModel]; 
 
     if (!noteSeq.notes || noteSeq.notes.length === 0) {
         console.warn('No notes to transpose.');

@@ -2,13 +2,15 @@ import { useMagentaIntegration } from "./useMagentaIntegration";
 import { type INoteSequence } from "@magenta/music";
 import type { KeySigName, ModelKey } from "./types";
 import { useCallback, useEffect } from "react";
+import type { Tone } from "./ToneService";
 
 export interface MagentaProps {
-    keySig?: KeySigName,
-    bpm?: number,
-    chordProg?: string[],
+    keySig: KeySigName,
+    bpm: number,
+    chordProg: string[],
+    instrument: Tone.Synth | Tone.Sampler,
     modelCheckpointURL?: string,
-    basicPitchSeq?: INoteSequence,
+    basicPitchSeq: INoteSequence,
     selectedModel: ModelKey,
     setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
     isModelLoading: boolean,
@@ -23,6 +25,7 @@ const Magenta: React.FC<MagentaProps> =({
     keySig,
     bpm,
     chordProg,
+    instrument,
     modelCheckpointURL,
     basicPitchSeq,
     selectedModel,
@@ -39,7 +42,13 @@ const Magenta: React.FC<MagentaProps> =({
         isModelLoading,
         setIsModelLoading,
         isGeneratingNotes,
-        setIsGeneratingNotes
+        setIsGeneratingNotes,
+        modelCheckpointURL,
+        keySig,
+        bpm,
+        instrument,
+        chordProg,
+        basicPitchSeq
     })
 
     // Makes call to Magenta model and plays it's output
@@ -51,7 +60,7 @@ const Magenta: React.FC<MagentaProps> =({
         setIsGeneratingNotes(false);
 
         // Plays notes using Tone.JS
-        await playNotes(magentaSeq, keySig, bpm);
+        await playNotes(magentaSeq, keySig, bpm, instrument);
     }, [predictNotes, playNotes])
 
     useEffect(() => {

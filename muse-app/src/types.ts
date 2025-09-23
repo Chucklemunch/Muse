@@ -1,11 +1,18 @@
 import type { NoteSequence } from "@magenta/music";
-import { CONSTANTS } from "./utils";
+import { KEY_NUMBERS } from "./utils";
 
 // Defines Key Signature key 
-export type KeySigName = keyof typeof CONSTANTS.KEY_NUMBERS;
+export type KeySigName = keyof typeof KEY_NUMBERS;
 
 // Defines valid model keys to be just the keys within the CONSTANTS object
-export type ModelKey = keyof typeof CONSTANTS;
+export type ModelKey = "BASIC_RNN" | "MELODY_RNN" | "CHORD_PITCHES_IMPROV_RNN";
+
+// Define structure for those models
+export interface ModelConfig {
+  MIN_PITCH: number;
+  MAX_PITCH: number;
+  URL: string;
+}
 
 export interface Note {
       pitch: number,

@@ -1,6 +1,6 @@
 // TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 // import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeySigName } from './types';
@@ -18,7 +18,6 @@ const Muse: React.FC = () => {
 
   // Setup Audio
   const sampleRate = 48000; //hz
-  const numChannels = 1;
   const audioContext = new AudioContext({ sampleRate: sampleRate });
   // const audioContext = new AudioContext();
   // const audioChunks = useRef<Float32Array[]>([]); // Accumulates audio before sending to backend
@@ -45,7 +44,6 @@ const Muse: React.FC = () => {
   const countedIn = useRef<boolean>(false);
   const [isJamming, setIsJamming] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [isAudioProcessed, setIsAudioProcessed] = useState<boolean>(false);
   const isRecordingRef = useRef(isRecording);
   const currentMeasure = useRef<number>(-1);
   const [currentBeat, setCurrentBeat] = useState<number>(0);
@@ -60,8 +58,8 @@ const Muse: React.FC = () => {
   const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
   const [chordProg, setChordProg] = useState<string[]>(["C", "G", "Am", "F"]);
-  const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
-  const cycleLength = 2 * measures; // Number of measures in person/AI exchange
+  // const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
+  const measures = 4; // Number of measures to trade with AI
   const measuresToRecord = measures // Using last measure to send info to basic-pitch
   const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
@@ -80,13 +78,13 @@ const Muse: React.FC = () => {
 
   // const transport = Tone.getTransport();
 
-  const KEYS: KeySigName[] = [
-    "C", "Db", "D", "Eb", "E",
-    "F", "F#", "G", "Ab", "A",
-    "Bb", "B", "Cm", "C#m", "Dm",
-    "Ebm", "Em", "Fm", "F#m", "Gm",
-    "G#m", "Am", "Bbm", "Bm"
-  ];
+  // const KEYS: KeySigName[] = [
+  //   "C", "Db", "D", "Eb", "E",
+  //   "F", "F#", "G", "Ab", "A",
+  //   "Bb", "B", "Cm", "C#m", "Dm",
+  //   "Ebm", "Em", "Fm", "F#m", "Gm",
+  //   "G#m", "Am", "Bbm", "Bm"
+  // ];
 
   // Metronome used throughout entire deployment
   const metronomeRef = useRef<Tone.MembraneSynth | null>(null);
@@ -97,6 +95,27 @@ const Muse: React.FC = () => {
     // const transport = Tone.getTransport();
     transport.bpm.value = bpm;
   }, [bpm]);
+
+  // Create instrument that plays predicted notes
+  const instrument = useMemo(() => {
+  //   return new Tone.Sampler({
+  //     urls: {
+  //         "C4" : "samples/C4.mp3",
+  //         "D4" : "samples/D4.mp3",
+  //         "E4" : "samples/E4.mp3",
+  //     },
+  //     release: 1,
+  //     // baseUrl : "https://raw.githubusercontent.com/Chucklemunch/Muse/main/muse-app/public/samples/",
+  //     volume: 5,
+  //     onload: () => {
+  //       console.log('sampler loaded');
+  //     }
+  // }).toDestination();
+
+    return new Tone.Synth({
+        volume: 5
+    }).toDestination();
+  }, []);
 
   useEffect(() => {
     // Schedule count-in clicks
@@ -433,6 +452,7 @@ const Muse: React.FC = () => {
         keySig={keySig}
         bpm={bpm}
         chordProg={chordProg}
+        instrument={instrument}
         modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
         basicPitchSeq={basicPitchResult.current}
         selectedModel={selectedModel}

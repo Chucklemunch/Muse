@@ -3,19 +3,6 @@ import './App.css';
 import Muse from './Muse.tsx';
 import { Box, Typography, Container, Button } from "@mui/material";
 
-// function Home() {
-//   return (
-//     <>
-//       <div>
-//         <h1>Welcome to Muse</h1>
-
-//         <img src='public/kermit_prs_copy.png' className="kermit-prs" alt="Kermit PRS Picture" />
-//         <Muse />
-//       </div>
-//     </>
-//   )
-// }
-
 function Home() {
   return (
     <Box

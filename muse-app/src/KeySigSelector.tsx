@@ -4,7 +4,6 @@ import {
   ToggleButtonGroup,
   Typography,
   Box,
-  Grid
 } from "@mui/material";
 
 export type KeySigName =
