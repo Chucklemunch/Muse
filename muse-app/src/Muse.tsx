@@ -189,7 +189,7 @@ const Muse: React.FC = () => {
   const startStopMetronome = () => {
     // Get transport
     if (!metronomePlaying) {
-      transport.start("+2");
+      transport.start("+3");
       setMetronomePlaying(true);
     } else {
       transport.stop();
@@ -237,7 +237,7 @@ const Muse: React.FC = () => {
       console.log(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error');
       console.error('WebSocket Error:', err);
     };
-  }, []);
+  }, [FASTAPI_WS_URL, bpm]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {

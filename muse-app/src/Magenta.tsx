@@ -68,7 +68,7 @@ const Magenta: React.FC<MagentaProps> =({
             console.log('isGeneratingNotes inside useEffect');
             predictAndPlay();
         }
-    },[isGeneratingNotes, predictAndPlay]);
+    },[isGeneratingNotes]);
 
 
     // console.log('keySig: ', keySig);
