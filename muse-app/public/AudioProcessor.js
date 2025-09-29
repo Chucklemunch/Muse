@@ -9,6 +9,8 @@ class AudioProcessor extends AudioWorkletProcessor {
         const input = inputs[0]
         const ch0 = input[0];
 
+        this.port.postMessage("in process function");
+        
         if (ch0) {
             this.port.postMessage(ch0.slice());
         }

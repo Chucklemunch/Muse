@@ -41,9 +41,6 @@ export const useMagentaIntegration = (
     // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
 
-    // // Key to number mapping
-    // const KEY_NUMBERS = KEY_NUMBERS;
-
     // Loads Model When Browser Loads
     useEffect (() => {
         setSelectedModel(selectedModel);
@@ -169,9 +166,9 @@ export const useMagentaIntegration = (
                     // Only used chord progression if proper model is selected
                     if (selectedModel === "CHORD_PITCHES_IMPROV_RNN") {
                         console.log('chord prog: ', chordProg);
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.75, chordProg) as INoteSequence;
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 2, chordProg) as INoteSequence;
                     } else {
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 0.75) as INoteSequence;
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 2) as INoteSequence;
                     }
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);

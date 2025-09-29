@@ -12,6 +12,7 @@ const TempoControl: React.FC<TempoControlProps> = ({ tempo, setTempo }) => {
     const bpm = Array.isArray(value) ? value[0] : value;
     setTempo(bpm);
     Tone.getTransport().bpm.value = bpm;
+    console.log('tempo changed to: ', bpm);
   };
 
   return (
