@@ -1,10 +1,6 @@
-// TOOD Build UI that integrates useAudioToMidiClient and useMagentaIntegration
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-// import { useMagentaIntegration } from "./useMagentaIntegration";
 import { NoteSequence } from '@magenta/music';
 import { type ModelKey, type KeySigName } from './types';
-// import * as Tone from "tone";
 import Magenta from './Magenta';
 import ChordProgSelector from './ChordProgSelector';
 import TempoControl from './TempoControl';
@@ -18,11 +14,11 @@ const Muse: React.FC = () => {
 
   // Setup Audio
   const sampleRate = 48000; //hz
-  const audioContext = new AudioContext({ sampleRate: sampleRate });
-  // const audioContext = new AudioContext();
-  // const audioChunks = useRef<Float32Array[]>([]); // Accumulates audio before sending to backend
+  const audioContext = useRef<AudioContext>(new AudioContext({ sampleRate: sampleRate }));
   const audioChunks = useRef<Int16Array[]>([]); // Accumulates audio before sending to backend
-  let source: MediaStreamAudioSourceNode;
+  const source = useRef<MediaStreamAudioSourceNode>(null);
+  const stream = useRef<MediaStream>(null);
+  const audioNode = useRef<AudioWorkletNode>(null);
 
   // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
   // For local development, it's typically http://localhost:8000
@@ -41,18 +37,10 @@ const Muse: React.FC = () => {
   // const MELODY_RNN : ModelKey = "MELODY_RNN";
 
   // Musical logistics setup
-  const countedIn = useRef<boolean>(false);
+  // const countedIn = useRef<boolean>(false);
   const [isJamming, setIsJamming] = useState<boolean>(false);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-  const isRecordingRef = useRef(isRecording);
   const currentMeasure = useRef<number>(-1);
   const [currentBeat, setCurrentBeat] = useState<number>(0);
-
-  // Makes sure recording status is updated while jamming callback is running
-
-  useEffect (() => {
-    isRecordingRef.current = isRecording;
-  }, [isRecording]);
 
   // More musical logistics
   const [keySig, setKeySig] = useState<KeySigName>("C");
@@ -88,28 +76,27 @@ const Muse: React.FC = () => {
     }).toDestination();
   }, []);
 
-  useEffect(() => {
+  const scheduleCountIn = () => {
     // Schedule count-in clicks
-    if (!countedIn.current) {
-      for (let i = 0; i < 4; i++) {
-        transport.schedule((time) => {
-          setCurrentBeat(i+1);
+    console.log('count in');
+    for (let i = 0; i < 4; i++) {
+      transport.schedule((time) => {
+        setCurrentBeat(i+1);
 
-          if (i === 0) {
-            metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
-          } else {
-            metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
-          }
-        }, "4n");
-      }
+        if (i === 0) {
+          metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
+        } else {
+          metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+        }
+      }, "4n");
 
       // Resetting transport time after count in
       transport.scheduleOnce(() =>{
         transport.position = "1:0:0";
       }, "2:0:0");
-      countedIn.current = true;
+      // countedIn.current = true;
     }
-  }, [countedIn]);
+  };
 
   useEffect(() => {
     // const transport = Tone.getTransport();
@@ -170,8 +157,6 @@ const Muse: React.FC = () => {
   // Refs to hold mutable objects that don't trigger re-renders
   // Explicitly type the ref's current value (e.g., WebSocket | null)
   const ws = useRef<WebSocket | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioStream = useRef<MediaStream | null>(null);
  
   // --- WebSocket Connection Logic ---
   const connectWebSocket = useCallback(() => {
@@ -184,7 +169,6 @@ const Muse: React.FC = () => {
     };
 
     ws.current.onmessage = (event: MessageEvent) => {
-      console.log('in onmessege');
       try {
         basicPitchResult.current = JSON.parse(JSON.parse(event.data));
         setIsGeneratingNotes(true);
@@ -208,16 +192,20 @@ const Muse: React.FC = () => {
 
   // Logic for stopping the audio recording
   const stopRecording = useCallback(() => {
-    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
-      mediaRecorder.current.stop();
-      setIsRecording(false);
-      console.log('stopping recording')
-    }
-    if (audioStream.current) {
-      console.log('stopping audioStream')
-      audioStream.current.getTracks().forEach(track => track.stop());
-      audioStream.current = null;
-    }
+    // Suspend audioContext
+    audioContext.current.suspend();
+
+    // Stop incoming audio track
+    // if (stream.current) {
+    //   stream.current.getTracks().forEach((track) => track.stop());
+    // }
+
+    // Reset and clear transport (and scheduled notes)
+    transport.stop();
+    transport.cancel(0);
+
+    // Reset to beat 1
+    setCurrentBeat(1);
   }, []);
 
   // Disconnecting Websocket logic
@@ -244,34 +232,36 @@ const Muse: React.FC = () => {
 
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
+    // Count In
+    scheduleCountIn(); 
+    // Make sure audioContext is running
+    audioContext.current.resume();
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       console.log('Cannot start recording: WebSocket not connected.', 'error');
       return;
     }
 
     //--- Trying different way to capture audio using AudioWorklet
-    await navigator.mediaDevices.getUserMedia({ audio : true })
-      .then((stream) => {
-        source = audioContext.createMediaStreamSource(stream)
-        const thread = stream.getTracks()[0];
-        console.log('settings: ', thread.getSettings());
-        console.log('audioContext.sampleRate: ', audioContext.sampleRate);
-      });
-
-    await audioContext.audioWorklet.addModule("/AudioProcessor.js");
-
-    // Make sure audio context is running
-    audioContext.resume();
-
-    const audioNode = new AudioWorkletNode(audioContext, 'audio-processor'); // Must register processor first with name 'audio-node'
+    stream.current = await navigator.mediaDevices.getUserMedia({ audio : true });
+    console.log('stream: ', stream.current);
 
     // Connect audio
-    source.connect(audioNode);
+    source.current = audioContext.current.createMediaStreamSource(stream.current);
+    const thread = stream.current.getTracks()[0];
+
+    console.log('settings: ', thread.getSettings());
+    console.log('audioContext.sampleRate: ', audioContext.current.sampleRate);
+
+    await audioContext.current.audioWorklet.addModule("/AudioProcessor.js");
+
+    audioNode.current = new AudioWorkletNode(audioContext.current, 'audio-processor'); // Must register processor first with name 'audio-node'
+
+    // Connect audio
+    source.current.connect(audioNode.current);
 
     // AudioProcessor sends Float32Array objects of length 128
     // This represents a single channel of audio data
-    audioNode.port.onmessage = (event) => {
-      console.log('audioNode onmessage');
+    audioNode.current.port.onmessage = (event) => {
       // event.data is a Float32Array of length 128
       const float32Chunk = event.data; 
 
@@ -288,15 +278,13 @@ const Muse: React.FC = () => {
 
       // processing code
       if (int16Chunk && ws.current && ws.current.readyState === WebSocket.OPEN) {
-        console.log('onmessage current measure: ', currentMeasure.current);
         // Sends audio chunks received during measures [0, measuresToRecord)
         if (currentMeasure.current < measuresToRecord && currentMeasure.current > 0) {
+          // console.log('pushing audio')
           audioChunks.current.push(int16Chunk);
         }
       }
     }
-
-    console.log('port: ', audioNode.port);
 
     // Starts metronome beating
     transport.scheduleRepeat(async () => {
@@ -310,7 +298,6 @@ const Muse: React.FC = () => {
 
       console.log('current measure: ', currentMeasure.current)
       if (ws.current) {
-        // if (currentMeasure.current == 3 && !isAudioSent) {
         if ((currentMeasure.current) % 4 == 0 && !isAudioSent) {
           console.log('sending chunks on measure: ', currentMeasure.current);
           console.log('audioChunks.current len: ', audioChunks.current.length);

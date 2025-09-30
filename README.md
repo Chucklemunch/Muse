@@ -23,3 +23,6 @@
 ### Demo Video
 
 COMING SOON...
+
+### TODOs
+- Make measures reset and count in re-execute after recording is stoppedf

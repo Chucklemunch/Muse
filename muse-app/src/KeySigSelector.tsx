@@ -30,7 +30,7 @@ const KeySigSelector: React.FC<KeySigSelectorProps> = ({ keySig, setKeySig }) =>
   const handleChange = (_: React.MouseEvent<HTMLElement>, newKey: KeySigName | null) => {
     if (newKey !== null) {
       setKeySig(newKey);
-      console.log('new key: ',)
+      console.log('new key: ', newKey)
     }
   };
 
