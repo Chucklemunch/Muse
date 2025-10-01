@@ -89,17 +89,7 @@ export const useMagentaIntegration = (
         console.log('transport (playNotes): ', transport);
         console.log('transport loop (playNotes): ', transport.loop);
         
-
-        const currentBar = parseInt(position.split(":")[0]);
-
-        let startBar = currentBar + 1;
-        // offset by 2: ignore measure 1 (countin)
-        while ((startBar - 1) % 4 !== 0) {
-            startBar++;
-        }
-
-        // Define start time based on measure
-        console.log('startBar: ', startBar);
+        const startBar = 5; // trading 4's means user has bars 1-4 and AI has 5-8
 
         // const transport = getTransport();
         transport.bpm.value = bpm;
@@ -119,13 +109,6 @@ export const useMagentaIntegration = (
             console.log("noteLetters");
             console.log(noteLetters);
 
-            // // Create instrument that plays predicted notes
-            // const instrument = new Tone.Synth({
-            //     volume: 5
-            // }).toDestination();
-
-            console.log('sampler: ', instrument);
-            
             // Adds notes from to note sequence to transport
             for (let i = 0; i < toneJSNotes.notes.length; i++) {
                 const noteTime = toneJSNotes.time[i];
@@ -149,6 +132,10 @@ export const useMagentaIntegration = (
             try {
                 console.log('predictNotes basicPitchSeq: ', basicPitchSeq)
                 basicPitchSeq.quantizationInfo = { stepsPerQuarter: 4 };
+                basicPitchSeq.tempos = [{ qpm : transport.bpm.value }];
+                
+                console.log('basicPitchSeq: ', basicPitchSeq);
+
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 let quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 4) as INoteSequence;
                 console.log('pre transpose: ', quantNoteSeq);

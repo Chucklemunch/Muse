@@ -2,7 +2,6 @@ import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
 import type { ModelKey, ModelConfig } from "./types";
 import { Tone, transport } from "./ToneService";
-// import * as Tone from "tone";
 
 export const CONSTANTS : {
     BASIC_RNN: ModelConfig;
@@ -128,6 +127,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
 
                 // computes which beat note starts on 
                 const startBeats = note.quantizedStartStep / stepsPerQuarter;
+
                 // calculates how many quarter notes note lasts
                 const durationBeats = (note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter; 
 
@@ -137,12 +137,19 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // Set first bar if needed
                 if (firstBar === -1) {
                     firstBar = parseInt(startTime.split(":")[0]);
+                    console.log('first bar: ', firstBar);
                 }
 
                 // Adjust time to relative times
                 const [bar, quarter, sixteenth] = startTime.split(":");
                 const adjustedTime = `${parseInt(bar) - firstBar + startBar}:${quarter}:${sixteenth}`;
                 console.log('adjustedTime: ', adjustedTime);
+
+                // Exit loop if note times go beyond measure 8
+                if (parseInt(adjustedTime.split(":")[0]) > 8) {
+                    console.log('exiting loop for adding notes')
+                    break;
+                }
                 
                 const durationTime = Tone.Time(durationBeats).toNotation();
 
@@ -153,20 +160,6 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
 
             }
         } 
-
-        for (let i = notes.time.length; i > 0; i--) {
-            // Check if notes exceed limit
-            const time: string = notes.time[i-1] as string;
-            console.log('time: ', time);
-
-            // Stop adding notes to part if this is the case
-            if (parseInt(time.split(":")[0]) > 8) {
-                console.log('excluding note: ', i);
-                notes.notes.pop();
-                notes.duration.pop();
-                notes.time.pop();
-            }
-        }
     } else {
         console.log("magentaToToneSeq error: coundn't convert notes");
     }

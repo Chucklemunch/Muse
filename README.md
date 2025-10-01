@@ -25,4 +25,5 @@
 COMING SOON...
 
 ### TODOs
-- Make measures reset and count in re-execute after recording is stoppedf
+- Make sure tempo is successfully updated and passed to websocket
+- Makes sure notes are played in time

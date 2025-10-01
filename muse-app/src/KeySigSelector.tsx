@@ -16,6 +16,7 @@ export type KeySigName =
 export interface KeySigSelectorProps {
   keySig: KeySigName;
   setKeySig: React.Dispatch<React.SetStateAction<KeySigName>>;
+  isJamming: boolean;
 }
 
 const KEYS: KeySigName[] = [
@@ -26,7 +27,7 @@ const KEYS: KeySigName[] = [
   "G#m", "Am", "Bbm", "Bm"
 ];
 
-const KeySigSelector: React.FC<KeySigSelectorProps> = ({ keySig, setKeySig }) => {
+const KeySigSelector: React.FC<KeySigSelectorProps> = ({ keySig, setKeySig, isJamming }) => {
   const handleChange = (_: React.MouseEvent<HTMLElement>, newKey: KeySigName | null) => {
     if (newKey !== null) {
       setKeySig(newKey);
@@ -46,7 +47,7 @@ const KeySigSelector: React.FC<KeySigSelectorProps> = ({ keySig, setKeySig }) =>
         sx={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 1 }}
       >
         {KEYS.map((k) => (
-          <ToggleButton key={k} value={k} sx={{ textTransform: "none"}}>
+          <ToggleButton key={k} value={k} sx={{ textTransform: "none"}} disabled={isJamming}>
             {k}
           </ToggleButton>
         ))}

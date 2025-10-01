@@ -65,14 +65,19 @@ const Muse: React.FC = () => {
 
   // Setup BPM for metronome whenever it is changed in app
   useEffect(() => {
-    // const transport = Tone.getTransport();
     transport.bpm.value = bpm;
   }, [bpm]);
 
   // Create instrument that plays predicted notes
   const instrument = useMemo(() => {
     return new Tone.Synth({
-        volume: 20
+      envelope: {
+        attack: 0.05,
+        decay: 0.2,
+        release: 0.2,
+        sustain: 0.1
+      },
+      volume: 20
     }).toDestination();
   }, []);
 
@@ -159,7 +164,7 @@ const Muse: React.FC = () => {
   const ws = useRef<WebSocket | null>(null);
  
   // --- WebSocket Connection Logic ---
-  const connectWebSocket = useCallback(() => {
+  useEffect(() => {
     // Use the explicitly defined WebSocket URL for FastAPI
     ws.current = new WebSocket(`${FASTAPI_WS_URL}?bpm=${bpm}`);
 
@@ -188,7 +193,20 @@ const Muse: React.FC = () => {
       console.log(`WebSocket Error: ${err.type || 'Unknown error'}`, 'error');
       console.error('WebSocket Error:', err);
     };
-  }, [FASTAPI_WS_URL]);
+
+    // Clean up -- Websocket reconnects each time user changes the BPM
+    return () => {
+      // Disconnects Websocket
+      if (ws.current) {
+        ws.current.close();
+        ws.current = null;
+      }
+
+      // Stops recording 
+      setIsConnected(false);
+      stopRecording();
+    };
+  }, [FASTAPI_WS_URL, bpm]);
 
   // Logic for stopping the audio recording
   const stopRecording = useCallback(() => {
@@ -206,28 +224,6 @@ const Muse: React.FC = () => {
 
     // Reset to beat 1
     setCurrentBeat(1);
-  }, []);
-
-  // Disconnecting Websocket logic
-  const disconnectWebSocket = useCallback(() => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.close();
-      setIsConnected(false);
-      stopRecording();
-    }
-  }, []);
-
-
-  // Connect websocket immediately upon app loading
-  useEffect(() => {
-    if (!isConnected) {
-      connectWebSocket();
-    }
-
-    // Cleanup
-    return () => {
-      disconnectWebSocket();
-    }
   }, []);
 
   // Logic for recording audio and sending to basic-pitch model
@@ -352,6 +348,7 @@ const Muse: React.FC = () => {
       <KeySigSelector 
         keySig={keySig}
         setKeySig={setKeySig}
+        isJamming={isJamming}
       />
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
         {/* <button
