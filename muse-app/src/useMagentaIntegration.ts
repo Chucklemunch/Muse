@@ -130,24 +130,21 @@ export const useMagentaIntegration = (
         }
         if (musicModel.current != null) {
             try {
-                console.log('predictNotes basicPitchSeq: ', basicPitchSeq)
-                basicPitchSeq.quantizationInfo = { stepsPerQuarter: 4 };
-                basicPitchSeq.tempos = [{ qpm : transport.bpm.value }];
-                
                 console.log('basicPitchSeq: ', basicPitchSeq);
+
+                console.log('predictNotes bpm: ', transport.bpm.value);
 
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 let quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 4) as INoteSequence;
-                console.log('pre transpose: ', quantNoteSeq);
+                // console.log('pre transpose: ', quantNoteSeq);
                 quantNoteSeq = transposeToValidPitchRange(quantNoteSeq, selectedModel);
                 
-                console.log("quantNoteSeq.steps: ", quantNoteSeq.totalQuantizedSteps);
-                // console.log("quantNoteSeq: ", quantNoteSeq);
+                console.log("quantNoteSeq: ", quantNoteSeq);
 
                 // Get next note predictions from Magenta model
                 // 4 steps/quarter -> 64 steps for 4 measures
                 let magentaResultLen = 0;
-                let magentaResult: INoteSequence = new NoteSequence();
+                let magentaResult: INoteSequence = new NoteSequence({tempos : [{qpm : transport.bpm.value}]});
                 
                 while (magentaResultLen === 0) {
                     // Only used chord progression if proper model is selected
@@ -159,6 +156,7 @@ export const useMagentaIntegration = (
                     }
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);
+                    console.log('magentaResult: ', magentaResult);
                 }
 
                 return magentaResult;

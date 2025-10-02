@@ -27,3 +27,4 @@ COMING SOON...
 ### TODOs
 - Make sure tempo is successfully updated and passed to websocket
 - Makes sure notes are played in time
+- Add pitch bends to ToneJS seq that are contained within Basic Pitches results

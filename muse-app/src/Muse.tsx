@@ -73,7 +73,7 @@ const Muse: React.FC = () => {
     return new Tone.Synth({
       envelope: {
         attack: 0.05,
-        decay: 0.2,
+        decay: 0.1,
         release: 0.2,
         sustain: 0.1
       },

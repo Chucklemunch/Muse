@@ -102,6 +102,12 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
         duration : [] as Time[],
         time : [] as Time[]
     };
+
+    // Testing transport stuff
+    console.log('transport bpm: ', transport.bpm.value);
+    console.log('2 seconds: ', Tone.Time(2).toNotation());
+    console.log('0.5 seconds: ', Tone.Time(0.5).toNotation());
+
     if (noteSeq.notes && noteSeq.quantizationInfo?.stepsPerQuarter) {
         // Get current position in time
         const position = transport.position; 
@@ -111,6 +117,8 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
         let firstBar = -1;
 
         const stepsPerQuarter = noteSeq.quantizationInfo.stepsPerQuarter;
+        const secPerQuarter = 1 / (transport.bpm.value / 60);
+
         console.log('stepsPerQuarter: ', stepsPerQuarter);
 
         // Adjust startTime to align with current place in jam
@@ -120,19 +128,27 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
         // Convert NoteSequence into object that can be used by ToneJS
         for (const note of noteSeq.notes) {
             if (note.quantizedStartStep != null && note.quantizedEndStep != null && note.pitch!= null ) {
+                console.log('processing note: ', note);
+
                 // Apply transposition
-                console.log("before transpose: ", Tone.Frequency(note.pitch, "midi").toNote())
+                // console.log("before transpose: ", Tone.Frequency(note.pitch, "midi").toNote())
                 const pitch = note.pitch + interval;
-                console.log("after transpose: ", Tone.Frequency(pitch, "midi").toNote())
+                // console.log("after transpose: ", Tone.Frequency(pitch, "midi").toNote())
 
                 // computes which beat note starts on 
-                const startBeats = note.quantizedStartStep / stepsPerQuarter;
+                // const startBeats = note.quantizedStartStep / stepsPerQuarter;
+                const startSec = (note.quantizedStartStep / stepsPerQuarter) * secPerQuarter;
+                // console.log('startBeats: ', startBeats);
 
                 // calculates how many quarter notes note lasts
-                const durationBeats = (note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter; 
+                const durationSec = ((note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter) * secPerQuarter; 
+                // const durationSec = note.endTime - note.startTime; 
+                console.log('durationSec: ', durationSec);
+                // console.log('durationBeats: ', durationBeats);
 
                 // Convert beats to bars:beats:sixteenths notation
-                const startTime: Time = Tone.Time(startBeats).toBarsBeatsSixteenths();
+                // const startTime: Time = Tone.Time(startBeats).toBarsBeatsSixteenths();
+                const startTime: Time = Tone.Time(startSec).toBarsBeatsSixteenths();
 
                 // Set first bar if needed
                 if (firstBar === -1) {
@@ -143,7 +159,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // Adjust time to relative times
                 const [bar, quarter, sixteenth] = startTime.split(":");
                 const adjustedTime = `${parseInt(bar) - firstBar + startBar}:${quarter}:${sixteenth}`;
-                console.log('adjustedTime: ', adjustedTime);
+                // console.log('adjustedTime: ', adjustedTime);
 
                 // Exit loop if note times go beyond measure 8
                 if (parseInt(adjustedTime.split(":")[0]) > 8) {
@@ -151,7 +167,8 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                     break;
                 }
                 
-                const durationTime = Tone.Time(durationBeats).toNotation();
+                // const durationTime = Tone.Time(durationBeats).toNotation();
+                const durationTime = Tone.Time(durationSec).toNotation();
 
                 // Add information for each note to notes object
                 notes.notes.push(pitch);  
