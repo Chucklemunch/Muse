@@ -12,11 +12,13 @@ const chords = [
 export interface ChordProgSelectorProps {
   chordProg: string[];
   setChordProg: React.Dispatch<React.SetStateAction<string[]>>;
+  isJamming: boolean;
 }
 
 const ChordProgSelector: React.FC<ChordProgSelectorProps> = ({
   chordProg,
-  setChordProg
+  setChordProg,
+  isJamming
 }) => {
 
   const handleChange = (index: number, value: string) => {
@@ -38,7 +40,7 @@ const ChordProgSelector: React.FC<ChordProgSelectorProps> = ({
         Chord Progression
       </Typography>
 
-      <Box sx={{ display: "flex", gap: 2 }}>
+      <Box sx={{ display: "flex", gap: 2 }} >
         {chordProg.map((chord, i) => (
           <FormControl key={i} sx={{ minWidth: 80 }}>
             <InputLabel>Chord</InputLabel>
@@ -46,6 +48,7 @@ const ChordProgSelector: React.FC<ChordProgSelectorProps> = ({
               value={chord}
               label="Chord"
               onChange={(e) => handleChange(i, e.target.value)}
+              disabled={isJamming}
             >
               {chords.map((c) => (
                 <MenuItem key={c} value={c}>

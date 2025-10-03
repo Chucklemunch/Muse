@@ -81,7 +81,7 @@ const Muse: React.FC = () => {
         release: 0.1,
         sustain: 0.2
       },
-      volume: 20
+      volume: 30
     }).toDestination();
   }, []);
 
@@ -100,7 +100,6 @@ const Muse: React.FC = () => {
           type: "sine4"
         }
       },
-
     }).toDestination();
 
     // Get chords to be used for backing track
@@ -451,6 +450,7 @@ const Muse: React.FC = () => {
       <ChordProgSelector
         chordProg={chordProg}
         setChordProg={setChordProg}
+        isJamming={isJamming}
       />
 
       <Magenta 
