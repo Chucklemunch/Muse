@@ -1,6 +1,6 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
-import type { ModelKey, ModelConfig } from "./types";
+import type { ModelKey, ModelConfig, KeySigName, Semitone } from "./types";
 import { Tone, transport } from "./ToneService";
 
 export const CONSTANTS : {
@@ -50,11 +50,30 @@ export const KEY_NUMBERS = {
         "Am" : 0,
         "Bbm" : 1,
         "Bm" : 2,
-        
+}
+
+export const SEMITONES = {
+        "C" : 0,
+        "Db" : 1,
+        "D" : 2,
+        "Eb" : 3,
+        "E" : 4,
+        "F" : 5,
+        "F#" : 6,
+        "G" : 7,
+        "Ab" : 8,
+        "A" : 9,
+        "Bb" : 10,
+        "B" : 11,
 }
 
 
-
+/**
+ * 
+ * @param noteSeq Note sequence object created from Basic Pitch's MIDI output
+ * @param selectedModel Magenta model that will be used for predicting the next notes
+ * @returns note sequence transposed in pitch range that is acceptable by the Magenta models
+ */
 export function transposeToValidPitchRange(noteSeq: INoteSequence, selectedModel: ModelKey): INoteSequence {
 
     const {MIN_PITCH, MAX_PITCH } = CONSTANTS[selectedModel]; 
@@ -182,4 +201,46 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
     }
 
     return notes;
+}
+
+/**
+ * 
+ * @param chordProg 
+ * @returns returns nested array of notes that represent the user's selected chord progression
+ */
+export function getChordProgNotes(chordProg: string[]) {
+    const c2 = 36; // MIDI note for C2
+    const minorChord = [0, 7, 15];
+    const majorChord = [0, 7, 16]
+
+    // Holds arrays of chord tones
+    const chords: number[][] = [];
+
+    for (const chord of chordProg) {
+        const chordNotes = [0, 0, 0];
+        let offset; // Offset to tone from C
+        let tone: Semitone;
+
+        // Check if chord is major or minor
+        if (chord.charAt(chord.length - 1) === "m") {
+            tone = chord.substring(0, chord.length - 1) as Semitone;
+            offset = SEMITONES[tone];
+
+            for (let i = 0; i < minorChord.length; i++) {
+                chordNotes[i] += minorChord[i] + c2 + offset;
+            }
+        } else {
+            tone = chord as Semitone;
+            offset = SEMITONES[tone];
+
+            for (let i = 0; i < majorChord.length; i++) {
+                chordNotes[i] += majorChord[i] + c2 + offset;
+            }
+        }
+        console.log('chord: ', chord, ' -- ', chordNotes);
+
+        chords.push(chordNotes);
+    }
+
+    return chords;
 }

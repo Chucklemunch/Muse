@@ -1,8 +1,11 @@
 import type { NoteSequence } from "@magenta/music";
-import { KEY_NUMBERS } from "./utils";
+import { KEY_NUMBERS, SEMITONES } from "./utils";
 
 // Defines Key Signature key 
 export type KeySigName = keyof typeof KEY_NUMBERS;
+
+// Defines tone type
+export type Semitone = keyof typeof SEMITONES;
 
 // Defines valid model keys to be just the keys within the CONSTANTS object
 export type ModelKey = "BASIC_RNN" | "MELODY_RNN" | "CHORD_PITCHES_IMPROV_RNN";
