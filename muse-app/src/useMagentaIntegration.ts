@@ -113,7 +113,7 @@ export const useMagentaIntegration = (
             for (let i = 0; i < toneJSNotes.notes.length; i++) {
                 const noteTime = toneJSNotes.time[i];
                 const noteDuration = toneJSNotes.duration[i];
-                const notePitch = toneJSNotes.notes[i];
+                const notePitch = Tone.Frequency(toneJSNotes.notes[i], "midi").toNote();
 
                 transport.scheduleOnce((time) => {
                     instrument.triggerAttackRelease(notePitch, noteDuration, time);
@@ -150,9 +150,9 @@ export const useMagentaIntegration = (
                     // Only used chord progression if proper model is selected
                     if (selectedModel === "CHORD_PITCHES_IMPROV_RNN") {
                         console.log('chord prog: ', chordProg);
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 2, chordProg) as INoteSequence;
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1, chordProg) as INoteSequence;
                     } else {
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 2) as INoteSequence;
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1) as INoteSequence;
                     }
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);

@@ -37,6 +37,7 @@ const Muse: React.FC = () => {
   // const MELODY_RNN : ModelKey = "MELODY_RNN";
 
   // Musical logistics setup
+  const [countedIn, setCountedIn] = useState<boolean>(false);
   const [isJamming, setIsJamming] = useState<boolean>(false);
   const currentMeasure = useRef<number>(1);
   const [currentBeat, setCurrentBeat] = useState<number>(0);
@@ -59,8 +60,12 @@ const Muse: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   // Metronome used throughout entire deployment
-  const metronomeRef = useRef<Tone.PolySynth | null>(null);
+  const metronomeRef = useRef<Tone.Synth | null>(null);
   const metronomeIdRef = useRef<number | null>(null);
+
+  // Synth used for backing chords
+  const backingTrack = useRef<Tone.PolySynth | null>(null);
+  const backingTrackIdRef = useRef<number | null>(null);
 
   // Setup BPM for metronome whenever it is changed in app
   useEffect(() => {
@@ -72,56 +77,94 @@ const Muse: React.FC = () => {
     return new Tone.Synth({
       envelope: {
         attack: 0.05,
-        decay: 0.1,
-        release: 0.2,
-        sustain: 0.1
+        decay: 0.5,
+        release: 0.1,
+        sustain: 0.2
       },
       volume: 20
     }).toDestination();
   }, []);
 
-  // Setting up metronome and chord backing
+  // Setting up backing track chords
   useEffect(() => {
-    metronomeRef.current = new Tone.PolySynth({
+    backingTrack.current = new Tone.PolySynth({
       options : {
-        "volume" : 10,
-        "oscillator" : {
-          "partials" : [1, 2, 5],
+        volume : 5,
+        envelope : {
+          attack : 0.1,
+          decay: 0.3,
+          sustain: 0.7,
+          release : 0.1,
         },
-      }
-    }).toDestination();
+        oscillator : {
+          type: "sine4"
+        }
+      },
 
-    // Resetting transport time after count in
-    transport.scheduleOnce(() =>{
-      transport.position = "1:0:0";
-    }, "2:0:0");
+    }).toDestination();
 
     // Get chords to be used for backing track
     const backingChords = getChordProgNotes(chordProg);
-    // console.log("backingChords: ", backingChords);
+    console.log("backingChords: ", backingChords);
+
+    // Schedule chords to play on half notes after count-in has occured
+    if (countedIn) {
+      console.log('scheduling chords');
+
+      transport.scheduleRepeat((time) => {
+        // Get current chord based on measure (1 measure per chord)
+        console.log('currentMeasure: ', currentMeasure.current);
+        const chordIdx = (currentMeasure.current - 1) % 4;
+        console.log('chord idx: ', chordIdx);
+        const currentChord = backingChords[chordIdx];
+        console.log('chordNotes: ', currentChord);
+
+        // Trigger chord
+        backingTrack.current?.triggerAttackRelease(currentChord, "2n", time);
+      }, "2n", "1:0:0");
+    }
+
+    // Cleanup : cancel all scheduled events related to backing track
+    return () => {
+      if (backingTrackIdRef.current !== null) {
+        transport.clear(backingTrackIdRef.current);
+        backingTrackIdRef.current = null;
+      }
+
+      // Get rid of backing track
+      console.log('disposing of backingTrack');
+      backingTrack.current?.dispose();
+    }
+  }, [isJamming, countedIn, chordProg]);
+
+  // Setting up metronome
+  useEffect(() => {
+    // Creating metronome
+    metronomeRef.current = new Tone.Synth({
+        volume : 10,
+    }).toDestination();
+
+    // Setting count-in to true (even though it hasn't technically finished) so chords can be scheduled
+    transport.scheduleOnce(() => {
+      setCountedIn(true);
+    }, "1:2:0");
+
+    // Resetting transport time after countin
+    transport.scheduleOnce(() =>{
+      transport.position = "1:0:0";
+    }, "2:0:0");
       
     // Metronome scheduling for tick and backing chords
     metronomeIdRef.current = transport.scheduleRepeat((time) => {
-      // Get current chord based on measure (1 measure per chord)
-      const chordIdx = (currentMeasure.current % 4) - 1;
-      console.log('chord idx: ', chordIdx);
-      const currentChord = backingChords[(currentMeasure.current % 4) - 1];
-      console.log('currentChord: ', currentChord);
-
       const position = Tone.Time(transport.position).toBarsBeatsSixteenths(); 
       const quarter = position.split(":")[1]; 
-      // console.log('current positions: ', position);
       setCurrentBeat(parseInt(quarter)+1);
       
       if (quarter === "0") {
         metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
-        metronomeRef.current?.triggerAttackRelease(currentChord, "2n", time);
-      } else if (quarter === "2") {
-          metronomeRef.current?.triggerAttackRelease(currentChord, "2n", time);
       }else {
         metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
       }
-
     }, "4n");
 
     // Schedule measure resetting after certain number of measures
@@ -137,11 +180,12 @@ const Muse: React.FC = () => {
         transport.clear(metronomeIdRef.current);
         metronomeIdRef.current = null;
       }
-      console.log('disposing of metronome');
+
       // Get rid of metronome
+      console.log('disposing of metronome');
       metronomeRef.current?.dispose();
     }
-  }, [isJamming, chordProg]);
+  }, [isJamming]);
 
   const startStopMetronome = () => {
     // Get transport
@@ -223,6 +267,8 @@ const Muse: React.FC = () => {
 
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
+    // Count In
+    // scheduleCountIn(); 
     // Make sure audioContext is running
     audioContext.current.resume();
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {

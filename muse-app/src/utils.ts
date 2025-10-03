@@ -1,6 +1,6 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
-import type { ModelKey, ModelConfig, KeySigName, Semitone } from "./types";
+import type { ModelKey, ModelConfig, Semitone } from "./types";
 import { Tone, transport } from "./ToneService";
 
 export const CONSTANTS : {
@@ -147,7 +147,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
         // Convert NoteSequence into object that can be used by ToneJS
         for (const note of noteSeq.notes) {
             if (note.quantizedStartStep != null && note.quantizedEndStep != null && note.pitch!= null ) {
-                console.log('processing note: ', note);
+                // console.log('processing note: ', note);
 
                 // Apply transposition
                 // console.log("before transpose: ", Tone.Frequency(note.pitch, "midi").toNote())
@@ -162,7 +162,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // calculates how many quarter notes note lasts
                 const durationSec = ((note.quantizedEndStep - note.quantizedStartStep) / stepsPerQuarter) * secPerQuarter; 
                 // const durationSec = note.endTime - note.startTime; 
-                console.log('durationSec: ', durationSec);
+                // console.log('durationSec: ', durationSec);
                 // console.log('durationBeats: ', durationBeats);
 
                 // Convert beats to bars:beats:sixteenths notation
@@ -172,7 +172,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // Set first bar if needed
                 if (firstBar === -1) {
                     firstBar = parseInt(startTime.split(":")[0]);
-                    console.log('first bar: ', firstBar);
+                    // console.log('first bar: ', firstBar);
                 }
 
                 // Adjust time to relative times
@@ -209,12 +209,12 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
  * @returns returns nested array of notes that represent the user's selected chord progression
  */
 export function getChordProgNotes(chordProg: string[]) {
-    const c2 = 36; // MIDI note for C2
+    const c3 = 36; // MIDI note for C2
     const minorChord = [0, 7, 15];
     const majorChord = [0, 7, 16]
 
     // Holds arrays of chord tones
-    const chords: number[][] = [];
+    const chords: string[][] = [];
 
     for (const chord of chordProg) {
         const chordNotes = [0, 0, 0];
@@ -227,19 +227,22 @@ export function getChordProgNotes(chordProg: string[]) {
             offset = SEMITONES[tone];
 
             for (let i = 0; i < minorChord.length; i++) {
-                chordNotes[i] += minorChord[i] + c2 + offset;
+                chordNotes[i] += minorChord[i] + c3 + offset;
             }
         } else {
             tone = chord as Semitone;
             offset = SEMITONES[tone];
 
             for (let i = 0; i < majorChord.length; i++) {
-                chordNotes[i] += majorChord[i] + c2 + offset;
+                chordNotes[i] += majorChord[i] + c3 + offset;
             }
         }
-        console.log('chord: ', chord, ' -- ', chordNotes);
 
-        chords.push(chordNotes);
+        // Convert midi notes to notes
+        const chordLetters = chordNotes.map(midiNote => Tone.Frequency(midiNote, "midi").toNote());
+        console.log('chord: ', chord, ' -- ', chordLetters);
+
+        chords.push(chordLetters);
     }
 
     return chords;
