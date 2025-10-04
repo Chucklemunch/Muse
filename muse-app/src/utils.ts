@@ -1,6 +1,6 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
-import type { ModelKey, ModelConfig, Semitone } from "./types";
+import type { ModelKey, ModelConfig, Semitone, KeySigName, ChordType } from "./types";
 import { Tone, transport } from "./ToneService";
 
 export const CONSTANTS : {
@@ -25,6 +25,9 @@ export const CONSTANTS : {
     }
 }
 
+// Denotes the number of semitones away from C
+// Numbers used when transposing output from model into desired key
+// Model's default output is in C... I think
 export const KEY_NUMBERS = {
         "C" : 0,
         "Db" : 1,
@@ -153,7 +156,8 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
 
                 // Apply transposition
                 // console.log("before transpose: ", Tone.Frequency(note.pitch, "midi").toNote())
-                const pitch = note.pitch + interval;
+                const pitch = note.pitch;
+                // const pitch = note.pitch + interval;
                 // console.log("after transpose: ", Tone.Frequency(pitch, "midi").toNote())
 
                 // computes which beat note starts on 
@@ -205,47 +209,84 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
     return notes;
 }
 
+// Number of semitones away from Key center that root of chord is
+export const CHORD_OFFSETS = {
+  "I" : [0, 7, 16], 
+  "II" : [2, 9, 18], 
+  "III" : [4, 11, 20], 
+  "IV" : [-7, 0, 9], 
+  "V" : [-5, 2, 11], 
+  "bVI" : [-4, 3, 12], 
+  "VI" : [-3, 4, 13], 
+  "bVII" : [-2, 5, 14],
+  "i" : [0, 7, 15], 
+  "ii" : [2, 9, 17], 
+  "iii" : [4, 11, 19], 
+  "iv" : [-7, 0, 8],
+  "v" : [-5, 2, 10],
+  "vi" : [-3, 4, 12],
+  "vii°" : [-1, 5, 14]
+}
+
+function getChordNames(chordProg: string[], key: KeySigName): string[] {
+    const chordNames = new Array(4).fill(""); // Holds chord names (C, Am, etc.)
+    const keyOffset = KEY_NUMBERS[key];
+    const c3 = 48; // MIDI note value
+
+    // Gets semitone, then checks maj/min/dim
+    for (let i = 0; i < chordProg.length; i++) {
+        // Get offset from key center to root of chord in chord progression
+        const chordOffset = CHORD_OFFSETS[chordProg[i] as ChordType][0];
+        
+        // Compute/add semitone to start of chord name
+        const rootNote = Tone.Frequency(c3 + keyOffset + chordOffset, "midi").toNote()
+        chordNames[i] += rootNote.substring(0, rootNote.length - 1);
+
+        // Determines if chord is major/min/dim
+        const lastChar = chordProg[i].charAt(chordProg[i].length - 1);
+        if (lastChar.toLowerCase() === "°") {
+            chordNames[i] += "dim";
+        } else if (lastChar.toLowerCase() === lastChar) {
+            chordNames[i] += "m";
+        } 
+    }
+    
+    console.log('chordNames: ', chordNames);
+    return chordNames;
+}
+
 /**
  * 
  * @param chordProg 
  * @returns returns nested array of notes that represent the user's selected chord progression
  */
-export function getChordProgNotes(chordProg: string[]) {
-    const c3 = 36; // MIDI note for C2
-    const minorChord = [0, 7, 15];
-    const majorChord = [0, 7, 16]
+export function getChordProgNotes(chordProg: string[], key: KeySigName): [string[][], string[]] {
+    const c3 = 48; // MIDI note for C3
+    // const diminshedChord = [0, 6, 14];
+    // const minorChord = [0, 7, 15];
+    // const majorChord = [0, 7, 16]
 
     // Holds arrays of chord tones
     const chords: string[][] = [];
 
     for (const chord of chordProg) {
-        const chordNotes = [0, 0, 0];
-        let offset; // Offset to tone from C
-        let tone: Semitone;
+        const CHORD = chord as ChordType;
+        const chordNotes = [...CHORD_OFFSETS[CHORD]]; // Semitone (MIDI) structure of chord
 
-        // Check if chord is major or minor
-        if (chord.charAt(chord.length - 1) === "m") {
-            tone = chord.substring(0, chord.length - 1) as Semitone;
-            offset = SEMITONES[tone];
+        const keyOffset = KEY_NUMBERS[key]; // Semitones from C to current key center
 
-            for (let i = 0; i < minorChord.length; i++) {
-                chordNotes[i] += minorChord[i] + c3 + offset;
-            }
-        } else {
-            tone = chord as Semitone;
-            offset = SEMITONES[tone];
-
-            for (let i = 0; i < majorChord.length; i++) {
-                chordNotes[i] += majorChord[i] + c3 + offset;
-            }
+        // Check offset chord which Key it's in relative to C
+        for (let i = 0; i < chordNotes.length; i++) {
+            chordNotes[i] += c3 + keyOffset;
         }
 
         // Convert midi notes to notes
         const chordLetters = chordNotes.map(midiNote => Tone.Frequency(midiNote, "midi").toNote());
-        console.log('chord: ', chord, ' -- ', chordLetters);
 
         chords.push(chordLetters);
     }
 
-    return chords;
+    const chordNames: string[] = getChordNames(chordProg, key);
+
+    return [chords, chordNames];
 }

@@ -45,7 +45,8 @@ const Muse: React.FC = () => {
   // More musical logistics
   const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
-  const [chordProg, setChordProg] = useState<string[]>(["C", "G", "Am", "F"]);
+  const [chordProg, setChordProg] = useState<string[]>(["I", "V", "vi", "IV"]);
+  const [chordNames, setChordNames] = useState<string[]>(["C", "G", "Am", "F"]);
   // const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
   const measures = 4; // Number of measures to trade with AI
   const measuresToRecord = measures // Using last measure to send info to basic-pitch
@@ -81,7 +82,7 @@ const Muse: React.FC = () => {
         release: 0.1,
         sustain: 0.2
       },
-      volume: 30
+      volume: -5
     }).toDestination();
   }, []);
 
@@ -89,7 +90,7 @@ const Muse: React.FC = () => {
   useEffect(() => {
     backingTrack.current = new Tone.PolySynth({
       options : {
-        volume : 5,
+        volume : -10,
         envelope : {
           attack : 0.1,
           decay: 0.3,
@@ -103,20 +104,15 @@ const Muse: React.FC = () => {
     }).toDestination();
 
     // Get chords to be used for backing track
-    const backingChords = getChordProgNotes(chordProg);
-    console.log("backingChords: ", backingChords);
+    const [backingChords, chordNames] = getChordProgNotes(chordProg, keySig);
+    setChordNames(chordNames);
 
     // Schedule chords to play on half notes after count-in has occured
     if (countedIn) {
-      console.log('scheduling chords');
-
       transport.scheduleRepeat((time) => {
         // Get current chord based on measure (1 measure per chord)
-        console.log('currentMeasure: ', currentMeasure.current);
         const chordIdx = (currentMeasure.current - 1) % 4;
-        console.log('chord idx: ', chordIdx);
         const currentChord = backingChords[chordIdx];
-        console.log('chordNotes: ', currentChord);
 
         // Trigger chord
         backingTrack.current?.triggerAttackRelease(currentChord, "2n", time);
@@ -134,13 +130,13 @@ const Muse: React.FC = () => {
       console.log('disposing of backingTrack');
       backingTrack.current?.dispose();
     }
-  }, [isJamming, countedIn, chordProg]);
+  }, [isJamming, countedIn, chordProg, keySig]);
 
   // Setting up metronome
   useEffect(() => {
     // Creating metronome
     metronomeRef.current = new Tone.Synth({
-        volume : 10,
+        volume : 0,
     }).toDestination();
 
     // Setting count-in to true (even though it hasn't technically finished) so chords can be scheduled
@@ -160,9 +156,9 @@ const Muse: React.FC = () => {
       setCurrentBeat(parseInt(quarter)+1);
       
       if (quarter === "0") {
-        metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
+        metronomeRef.current?.triggerAttackRelease("C4", "16n", time);
       }else {
-        metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
+        metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
       }
     }, "4n");
 
@@ -437,6 +433,7 @@ const Muse: React.FC = () => {
           onClick={() => {
             stopRecording();
             setIsJamming(false);
+            setCountedIn(false);
             startStopMetronome();
           }}
           disabled={!isJamming}
@@ -456,7 +453,7 @@ const Muse: React.FC = () => {
       <Magenta 
         keySig={keySig}
         bpm={bpm}
-        chordProg={chordProg}
+        chordProg={chordNames}
         instrument={instrument}
         modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
         basicPitchSeq={basicPitchResult.current}

@@ -150,7 +150,7 @@ export const useMagentaIntegration = (
                     // Only used chord progression if proper model is selected
                     if (selectedModel === "CHORD_PITCHES_IMPROV_RNN") {
                         console.log('chord prog: ', chordProg);
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1, chordProg) as INoteSequence;
+                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1.5, chordProg) as INoteSequence;
                     } else {
                         magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1) as INoteSequence;
                     }
