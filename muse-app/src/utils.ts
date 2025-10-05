@@ -1,6 +1,6 @@
 import type { INoteSequence } from "@magenta/music";
 import type { Time } from "tone/build/esm/core/type/Units";
-import type { ModelKey, ModelConfig, Semitone, KeySigName, ChordType } from "./types";
+import type { ModelKey, ModelConfig, KeySigName, ChordType } from "./types";
 import { Tone, transport } from "./ToneService";
 
 export const CONSTANTS : {
@@ -157,6 +157,7 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // Apply transposition
                 // console.log("before transpose: ", Tone.Frequency(note.pitch, "midi").toNote())
                 const pitch = note.pitch;
+                console.log('interval: ', interval);
                 // const pitch = note.pitch + interval;
                 // console.log("after transpose: ", Tone.Frequency(pitch, "midi").toNote())
 

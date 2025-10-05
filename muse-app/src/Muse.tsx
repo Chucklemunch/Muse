@@ -82,7 +82,7 @@ const Muse: React.FC = () => {
         release: 0.1,
         sustain: 0.2
       },
-      volume: -5
+      volume: 0
     }).toDestination();
   }, []);
 
@@ -90,7 +90,7 @@ const Muse: React.FC = () => {
   useEffect(() => {
     backingTrack.current = new Tone.PolySynth({
       options : {
-        volume : -10,
+        volume : -15,
         envelope : {
           attack : 0.1,
           decay: 0.3,
@@ -136,7 +136,7 @@ const Muse: React.FC = () => {
   useEffect(() => {
     // Creating metronome
     metronomeRef.current = new Tone.Synth({
-        volume : 0,
+        volume : 10,
     }).toDestination();
 
     // Setting count-in to true (even though it hasn't technically finished) so chords can be scheduled
@@ -156,9 +156,9 @@ const Muse: React.FC = () => {
       setCurrentBeat(parseInt(quarter)+1);
       
       if (quarter === "0") {
-        metronomeRef.current?.triggerAttackRelease("C4", "16n", time);
+        metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
       }else {
-        metronomeRef.current?.triggerAttackRelease("C3", "16n", time);
+        metronomeRef.current?.triggerAttackRelease("C1", "16n", time);
       }
     }, "4n");
 
