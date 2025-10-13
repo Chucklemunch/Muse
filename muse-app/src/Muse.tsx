@@ -22,7 +22,10 @@ const Muse: React.FC = () => {
 
   // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
   // For local development, it's typically http://localhost:8000
-  const FASTAPI_BASE_URL = "http://localhost:8000";
+  const FASTAPI_BASE_URL = process.env.NODE_ENV === "production" 
+		? "https://muse.charliekotula.com/api"
+		: "http://localhost:8000";
+
   // For WebSocket, convert http:// to ws:// or https:// to wss://
   const FASTAPI_WS_PROTOCOL = FASTAPI_BASE_URL.startsWith("https://") ? "wss://" : "ws://";
   const FASTAPI_WS_HOST = FASTAPI_BASE_URL.replace(/https?:\/\//, ''); // Remove protocol for host part

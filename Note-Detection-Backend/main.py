@@ -31,6 +31,7 @@ app = FastAPI()
 origins = [
     "http://localhost",
     "http://localhost:5173", # React server port with Vite
+		"http://muse.charliekotula.com" # Where Muse is hosted
     # Add other origins if your frontend is hosted elsewhere (e.g., your domain)
 ]
 
@@ -44,7 +45,8 @@ app.add_middleware(
 )
 
 # Mount the directory where your React app's build output is located.
-FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist"
+#FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist" # Local development
+FRONTEND_BUILD_DIR = "/var/www/Muse/muse-app/dist" # Deployment on server
 
 # Check if the frontend build directory exists
 if not os.path.isdir(FRONTEND_BUILD_DIR):
