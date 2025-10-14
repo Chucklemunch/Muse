@@ -85,7 +85,7 @@ const Muse: React.FC = () => {
         release: 0.1,
         sustain: 0.2
       },
-      volume: 0
+      volume: -5
     }).toDestination();
   }, []);
 
@@ -139,7 +139,7 @@ const Muse: React.FC = () => {
   useEffect(() => {
     // Creating metronome
     metronomeRef.current = new Tone.Synth({
-        volume : 10,
+        volume : 0,
     }).toDestination();
 
     // Setting count-in to true (even though it hasn't technically finished) so chords can be scheduled

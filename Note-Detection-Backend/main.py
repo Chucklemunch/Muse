@@ -45,8 +45,8 @@ app.add_middleware(
 )
 
 # Mount the directory where your React app's build output is located.
-#FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist" # Local development
-FRONTEND_BUILD_DIR = "/var/www/Muse/muse-app/dist" # Deployment on server
+FRONTEND_BUILD_DIR = "/Users/kotula/code/Muse/muse-app/dist" # Local development
+# FRONTEND_BUILD_DIR = "/var/www/Muse/muse-app/dist" # Deployment on server
 
 # Check if the frontend build directory exists
 if not os.path.isdir(FRONTEND_BUILD_DIR):
