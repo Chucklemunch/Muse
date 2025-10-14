@@ -9,6 +9,7 @@ import { CONSTANTS, getChordProgNotes } from './utils';
 import { useCallback } from 'react';
 import { Tone, transport } from './ToneService';
 import BeatFlasher from './BeatFlasher';
+import Instructions from './Instructions';
 
 const Muse: React.FC = () => {
 
@@ -371,6 +372,7 @@ const Muse: React.FC = () => {
   // --- Render UI ---
   return (
     <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '800px', margin: 'auto', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+      <Instructions />
       <h1 style={{ color: '#2c3e50', textAlign: 'center', marginBottom: '20px' }}>AI Jamming App</h1>
       <p style={{ textAlign: 'center', marginBottom: '30px', color: '#555' }}>
         Transcribe your audio to MIDI, predict continuations with AI, and play the result.
