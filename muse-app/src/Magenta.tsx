@@ -70,15 +70,6 @@ const Magenta: React.FC<MagentaProps> =({
         }
     },[isGeneratingNotes]);
 
-
-    // console.log('keySig: ', keySig);
-    // console.log('bpm: ', bpm,);
-    // console.log('modelCheckpointURL: ', modelCheckpointURL);
-    // console.log('basicPitchSeq: ', basicPitchSeq);
-    // console.log('selectedModel: ', selectedModel);
-    // console.log('isModelLoading: ', isModelLoading);
-    // console.log('isGeneratingNotes: ', isGeneratingNotes);
-
     return null;
 }
 

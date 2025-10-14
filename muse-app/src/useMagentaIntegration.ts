@@ -78,55 +78,64 @@ export const useMagentaIntegration = (
     }, [selectedModel]);
 
     // Uses ToneJS to play notes returned from Magenta model
-    const playNotes = async (notes : INoteSequence, keySig: KeySigName, bpm : number, instrument: Tone.Sampler | Tone.Synth) => {
-        // Interval that sequence needs to be transposed
-        const interval = KEY_NUMBERS[keySig];
+    const playNotes = async (notes : INoteSequence | undefined, keySig: KeySigName, bpm : number, instrument: Tone.Sampler | Tone.Synth) => {
+        // Only plays predicted if basic-pitch returned a prediction containing notes
+        if (notes) {
+            // Interval that sequence needs to be transposed
+            const interval = KEY_NUMBERS[keySig];
 
-        // Calculate which measure to start part on
-        // const position = Tone.getTransport().position as string; // Bars:Beats:Sixteenths
-        const position = transport.position as string; // Bars:Beats:Sixteenths
-        console.log('transport position (playNotes): ', position);
-        console.log('transport (playNotes): ', transport);
-        console.log('transport loop (playNotes): ', transport.loop);
-        
-        const startBar = 5; // trading 4's means user has bars 1-4 and AI has 5-8
+            // Calculate which measure to start part on
+            // const position = Tone.getTransport().position as string; // Bars:Beats:Sixteenths
+            const position = transport.position as string; // Bars:Beats:Sixteenths
+            console.log('transport position (playNotes): ', position);
+            console.log('transport (playNotes): ', transport);
+            console.log('transport loop (playNotes): ', transport.loop);
+            
+            const startBar = 5; // trading 4's means user has bars 1-4 and AI has 5-8
 
-        // const transport = getTransport();
-        transport.bpm.value = bpm;
-        console.log('bpm in playNotes: ', bpm);
+            // const transport = getTransport();
+            transport.bpm.value = bpm;
+            console.log('bpm in playNotes: ', bpm);
 
-        // Make sure note sequence isn't zero length
-        if (notes.notes && notes.notes.length === 0) {
-            console.log("playNotes: note sequence had zero length");
-            return;
-        } else{
-            const toneJSNotes = await magentaToToneSeq(notes, interval, startBar);
-            console.log("toneJSNotes: ", toneJSNotes);
-            const noteLetters: string[] = [];
-            toneJSNotes.notes.forEach((note) => {
-                noteLetters.push(Tone.Frequency(note, "midi").toNote());
-            })
-            console.log("noteLetters");
-            console.log(noteLetters);
+            // Make sure note sequence isn't zero length
+            if (notes.notes && notes.notes.length === 0) {
+                console.log("playNotes: note sequence had zero length");
+                return;
+            } else{
+                const toneJSNotes = await magentaToToneSeq(notes, interval, startBar);
+                console.log("toneJSNotes: ", toneJSNotes);
+                const noteLetters: string[] = [];
+                toneJSNotes.notes.forEach((note) => {
+                    noteLetters.push(Tone.Frequency(note, "midi").toNote());
+                })
+                console.log("noteLetters");
+                console.log(noteLetters);
 
-            // Adds notes from to note sequence to transport
-            for (let i = 0; i < toneJSNotes.notes.length; i++) {
-                const noteTime = toneJSNotes.time[i];
-                const noteDuration = toneJSNotes.duration[i];
-                const notePitch = Tone.Frequency(toneJSNotes.notes[i], "midi").toNote();
+                // Adds notes from to note sequence to transport
+                for (let i = 0; i < toneJSNotes.notes.length; i++) {
+                    const noteTime = toneJSNotes.time[i];
+                    const noteDuration = toneJSNotes.duration[i];
+                    const notePitch = Tone.Frequency(toneJSNotes.notes[i], "midi").toNote();
 
-                transport.scheduleOnce((time) => {
-                    instrument.triggerAttackRelease(notePitch, noteDuration, time);
-                }, noteTime);  
+                    transport.scheduleOnce((time) => {
+                        instrument.triggerAttackRelease(notePitch, noteDuration, time);
+                    }, noteTime);  
+                }
             }
+        } else {
+            console.log("no notes predicted by basic pitch")
         }
     }
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
     const predictNotes = async (chordProg: string[], basicPitchSeq: INoteSequence) => {
-        if (!basicPitchSeq || Object.keys(basicPitchSeq).length === 0) {
+        if (!basicPitchSeq 
+            || basicPitchSeq.notes === undefined 
+            // || basicPitchSeq.notes?.length === 0
+        ) {
             console.log("basicPitchSeq is empty or undefined");
+            return
         }
         if (musicModel.current != null) {
             try {

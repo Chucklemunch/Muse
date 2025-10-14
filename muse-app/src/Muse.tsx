@@ -93,7 +93,7 @@ const Muse: React.FC = () => {
   useEffect(() => {
     backingTrack.current = new Tone.PolySynth({
       options : {
-        volume : -15,
+        volume : -25,
         envelope : {
           attack : 0.1,
           decay: 0.3,
