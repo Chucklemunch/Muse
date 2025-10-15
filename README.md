@@ -20,5 +20,4 @@
 - [Melody_RNN](https://gitlab.cci.drexel.edu/tjh346/CI103-66-003/-/tree/bc0f46c69f4174f280facb0088c5e6f67188e546/Magenta/magenta-master/magenta/models/melody_rnn?utm_source=chatgpt.com)
 
 ### Demo Video
-
-<video controls src="video1373702196.mp4" title="Muse Demo"></video>
+![](muse-demo.mp4)
