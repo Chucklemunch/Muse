@@ -59,16 +59,3 @@ export interface MagentaMidiResponse {
   midiData: MidiNoteEvent[];
   status?: string; // 'success', 'no_notes_detected'
 }
-
-// export interface NoteSequence {
-//     timeSignatures : [];
-//     keySignatures : [];
-//     tempos : [];
-//     notes : [];
-//     pitchBends : [];
-//     controlChanges : [];
-//     partInfos : [];
-//     textAnnotations : [];
-//     sectionAnnotations : [];
-//     sectionGroups : [];
-// }

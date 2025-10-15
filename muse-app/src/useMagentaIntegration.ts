@@ -1,12 +1,18 @@
 import { MusicRNN, NoteSequence, type INoteSequence } from "@magenta/music";
 import { CONSTANTS, KEY_NUMBERS, transposeToValidPitchRange, magentaToToneSeq } from "./utils";
-import type { KeySigName } from "./types";
+import type { KeySigName, ModelKey } from "./types";
 import { quantizeNoteSequence } from "@magenta/music/esm/core/sequences";
 import { useEffect, useRef } from "react";
 // import * as Tone from "tone";
-import type { MagentaProps } from "./Magenta";
 import { Tone, transport } from './ToneService';
 
+
+export interface MagentaIntegrationProps {
+    selectedModel: ModelKey,
+    setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
+    isModelLoading: boolean,
+    setIsModelLoading: React.Dispatch<React.SetStateAction<boolean>>,
+}
 
 /*
 The magenta model makes predictions based on probabilities.
@@ -16,27 +22,12 @@ Class 0 = no event
 Class 1 = note-off event
 */
 export const useMagentaIntegration = (
-    // key: KeyName,
-    // bpm: number,
-    // modelCheckpointURL: string, 
-    // basicPitchSeq: INoteSequence,
-    // selectedModel: ModelKey,
-    // setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
-    // isModelLoading: boolean,
-    // setIsModelLoading: React.Dispatch<React.SetStateAction<boolean>>,
-    // isGeneratingNotes: boolean,
-    // setIsGeneratingNotes: React.Dispatch<React.SetStateAction<boolean>>
     {
-       selectedModel,
-       setSelectedModel,
-       isModelLoading,
-       setIsModelLoading,
-    //    isGeneratingNotes,
-    //    setIsGeneratingNotes,
-    //    instrument,
-    //    chordProg,
-    //    basicPitchSeq
-    }: MagentaProps 
+        selectedModel,
+        setSelectedModel,
+        isModelLoading,
+        setIsModelLoading,
+    }: MagentaIntegrationProps 
 ) => {
     // // Model Checkpoints for pre-trained MagentaJS Models
     const musicModel = useRef<MusicRNN | null>(null);
@@ -91,7 +82,8 @@ export const useMagentaIntegration = (
             console.log('transport (playNotes): ', transport);
             console.log('transport loop (playNotes): ', transport.loop);
             
-            const startBar = 5; // trading 4's means user has bars 1-4 and AI has 5-8
+            // const startBar = 5; // trading 4's means user has bars 1-4 and AI has 5-8
+            const startBar = 9; // trading 8's means user has bars 1-8 and AI has 9-16
 
             // const transport = getTransport();
             transport.bpm.value = bpm;
@@ -129,40 +121,29 @@ export const useMagentaIntegration = (
 
     // --- Logic for processing and playing next notes
     // --- asynchronous function for getting results from the magenta model
-    const predictNotes = async (chordProg: string[], basicPitchSeq: INoteSequence) => {
+    const predictNotes = async (temperature: number, chordProg: string[], basicPitchSeq: INoteSequence) => {
         if (!basicPitchSeq 
             || basicPitchSeq.notes === undefined 
-            // || basicPitchSeq.notes?.length === 0
+            || basicPitchSeq.notes?.length === 0
         ) {
             console.log("basicPitchSeq is empty or undefined");
             return
         }
         if (musicModel.current != null) {
             try {
-                console.log('basicPitchSeq: ', basicPitchSeq);
-
-                console.log('predictNotes bpm: ', transport.bpm.value);
-
                 // Quantize NoteSequence and Transpose all pitches into valid range for Magenta
                 let quantNoteSeq = quantizeNoteSequence(basicPitchSeq, 4) as INoteSequence;
-                // console.log('pre transpose: ', quantNoteSeq);
                 quantNoteSeq = transposeToValidPitchRange(quantNoteSeq, selectedModel);
                 
                 console.log("quantNoteSeq: ", quantNoteSeq);
 
                 // Get next note predictions from Magenta model
-                // 4 steps/quarter -> 64 steps for 4 measures
+                // 4 steps/quarter -> 64 steps for 4 measures: 128 for 8 measures
                 let magentaResultLen = 0;
                 let magentaResult: INoteSequence = new NoteSequence({tempos : [{qpm : transport.bpm.value}]});
                 
                 while (magentaResultLen === 0) {
-                    // Only used chord progression if proper model is selected
-                    if (selectedModel === "CHORD_PITCHES_IMPROV_RNN") {
-                        console.log('chord prog: ', chordProg);
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1.7, chordProg) as INoteSequence;
-                    } else {
-                        magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 64, 1) as INoteSequence;
-                    }
+                    magentaResult = await musicModel.current.continueSequence(quantNoteSeq, 128, temperature, chordProg) as INoteSequence;
                     magentaResultLen = magentaResult.notes?.length ?? 0;
                     console.log('magentaResultLen: ', magentaResultLen);
                     console.log('magentaResult: ', magentaResult);
@@ -182,10 +163,6 @@ export const useMagentaIntegration = (
 
 
     return({
-        // isModelLoading,
-        // isGeneratingNotes,
-        // selectedModel,
-        // setSelectedModel,
         predictNotes,
         playNotes
     });

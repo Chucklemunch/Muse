@@ -11,6 +11,7 @@ function Home() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
+        padding: "3em",
         alignItems: "center",
         bgcolor: "#f5f5f5",
         textAlign: "center",
@@ -33,7 +34,7 @@ function Home() {
               "&:hover": {
                 transform: "scale(1.1) rotate(-5deg)",
                 filter: "brightness(1.1) saturate(1.2)",
-                boxShadow: "0 0 30px 10px rgba(0, 255, 0, 0.7)"
+                boxShadow: "0 0 1em 1em rgba(0, 255, 0, 0.7)"
               }
           }}
       />

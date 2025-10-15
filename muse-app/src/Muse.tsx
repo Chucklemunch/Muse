@@ -5,11 +5,12 @@ import Magenta from './Magenta';
 import ChordProgSelector from './ChordProgSelector';
 import TempoControl from './TempoControl';
 import KeySigSelector from './KeySigSelector';
-import { CONSTANTS, getChordProgNotes } from './utils';
+import { getChordProgNotes } from './utils';
 import { useCallback } from 'react';
 import { Tone, transport } from './ToneService';
 import BeatFlasher from './BeatFlasher';
 import Instructions from './Instructions';
+import TemperatureControl from './TemperatureControl';
 
 const Muse: React.FC = () => {
 
@@ -21,8 +22,7 @@ const Muse: React.FC = () => {
   const stream = useRef<MediaStream>(null);
   const audioNode = useRef<AudioWorkletNode>(null);
 
-  // IMPORTANT: Adjust this if your FastAPI server is running on a different host or port.
-  // For local development, it's typically http://localhost:8000
+  // FastAPI URL for prod and development
   const FASTAPI_BASE_URL = process.env.NODE_ENV === "production" 
 		? "https://muse.charliekotula.com/api"
 		: "http://localhost:8000";
@@ -36,9 +36,7 @@ const Muse: React.FC = () => {
   const basicPitchResult = useRef<NoteSequence>(new NoteSequence());
 
   // Model Checkpoints for pre-trained MagentaJS Models
-  const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN"; // Only using this model for now
-  // const BASIC_RNN : ModelKey = "BASIC_RNN"; 
-  // const MELODY_RNN : ModelKey = "MELODY_RNN";
+  const CHORD_PITCHES_IMPROV_RNN : ModelKey = "CHORD_PITCHES_IMPROV_RNN";
 
   // Musical logistics setup
   const [countedIn, setCountedIn] = useState<boolean>(false);
@@ -49,11 +47,12 @@ const Muse: React.FC = () => {
   // More musical logistics
   const [keySig, setKeySig] = useState<KeySigName>("C");
   const [bpm, setBPM] = useState<number>(120); // Default BPM for app
+  const [temperature, setTemperature] = useState<number>(1.5) // Sets model temperature
   const [chordProg, setChordProg] = useState<string[]>(["I", "V", "vi", "IV"]);
   const [chordNames, setChordNames] = useState<string[]>(["C", "G", "Am", "F"]);
   // const [measures, setMeasures] = useState<number>(4); // Number of measures to trade with AI
-  const measures = 4; // Number of measures to trade with AI
-  const measuresToRecord = measures // Using last measure to send info to basic-pitch
+  // const measuresToRecord = 4; // Number of measures to trade with AI -- trading 4s
+  const measuresToRecord = 8; // Number of measures to trade with AI -- trading 8s
   const [metronomePlaying, setMetronomePlaying] = useState<boolean>(false);
 
   // Managing Model State
@@ -138,7 +137,6 @@ const Muse: React.FC = () => {
 
   // Setting up metronome
   useEffect(() => {
-    // Creating metronome
     metronomeRef.current = new Tone.Synth({
         volume : 0,
     }).toDestination();
@@ -159,6 +157,7 @@ const Muse: React.FC = () => {
       const quarter = position.split(":")[1]; 
       setCurrentBeat(parseInt(quarter)+1);
       
+      // Marks start of measure with higher pitched tone
       if (quarter === "0") {
         metronomeRef.current?.triggerAttackRelease("C2", "16n", time);
       }else {
@@ -170,7 +169,8 @@ const Muse: React.FC = () => {
     transport.scheduleRepeat(() => { 
       console.log('resetting measures');
       transport.position = "1:0:0";
-    }, "9:0:0");
+    // }, "9:0:0"); trading 4s
+    }, "17:0:0"); // trading 8s
 
     // Clean-up to avoid duplicate metronomes
     return () => {
@@ -197,20 +197,21 @@ const Muse: React.FC = () => {
     }
   }
 
-  // Refs to hold mutable objects that don't trigger re-renders
-  // Explicitly type the ref's current value (e.g., WebSocket | null)
-  const ws = useRef<WebSocket | null>(null);
+  // WebSocket Ref
+  const ws = useRef<WebSocket>(null);
  
   // --- WebSocket Connection Logic ---
   useEffect(() => {
-    // Use the explicitly defined WebSocket URL for FastAPI
+    // Connect to WebSocket -- BPM is passed to Basic-Pitch model
     ws.current = new WebSocket(`${FASTAPI_WS_URL}?bpm=${bpm}`);
 
+    // Used to verify connection in console
     ws.current.onopen = () => {
       setIsConnected(true);
       console.log('WebSocket Connected!', 'success', `bpm: ${bpm}`);
     };
 
+    // Processed output from Basic-Pitch model
     ws.current.onmessage = (event: MessageEvent) => {
       try {
         basicPitchResult.current = JSON.parse(JSON.parse(event.data));
@@ -251,11 +252,6 @@ const Muse: React.FC = () => {
     // Suspend audioContext
     audioContext.current.suspend();
 
-    // Stop incoming audio track
-    // if (stream.current) {
-    //   stream.current.getTracks().forEach((track) => track.stop());
-    // }
-
     // Reset and clear transport (and scheduled notes)
     transport.stop();
     transport.cancel(0);
@@ -266,28 +262,15 @@ const Muse: React.FC = () => {
 
   // Logic for recording audio and sending to basic-pitch model
   const startJamming = async () => {
-    // Count In
-    // scheduleCountIn(); 
     // Make sure audioContext is running
     audioContext.current.resume();
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-      console.log('Cannot start recording: WebSocket not connected.', 'error');
-      return;
-    }
 
-    //--- Trying different way to capture audio using AudioWorklet
+    // Connect to microphone
     stream.current = await navigator.mediaDevices.getUserMedia({ audio : true });
-    console.log('stream: ', stream.current);
 
-    // Connect audio
+    // Connect audio stream
     source.current = audioContext.current.createMediaStreamSource(stream.current);
-    const thread = stream.current.getTracks()[0];
-
-    console.log('settings: ', thread.getSettings());
-    console.log('audioContext.sampleRate: ', audioContext.current.sampleRate);
-
     await audioContext.current.audioWorklet.addModule("/AudioProcessor.js");
-
     audioNode.current = new AudioWorkletNode(audioContext.current, 'audio-processor'); // Must register processor first with name 'audio-node'
 
     // Connect audio
@@ -313,8 +296,9 @@ const Muse: React.FC = () => {
       // processing code
       if (int16Chunk && ws.current && ws.current.readyState === WebSocket.OPEN) {
         // Sends audio chunks received during measures [0, measuresToRecord)
-        if (currentMeasure.current < measuresToRecord && currentMeasure.current > 0) {
-          // console.log('pushing audio')
+        // if (currentMeasure.current < measuresToRecord && currentMeasure.current > 0) {
+        // idea is to just take first half of user input to account for latency of api call
+        if (currentMeasure.current <= (measuresToRecord / 2) && currentMeasure.current > 0) { 
           audioChunks.current.push(int16Chunk);
         }
       }
@@ -332,20 +316,15 @@ const Muse: React.FC = () => {
 
       console.log('current measure: ', currentMeasure.current)
       if (ws.current) {
-        if ((currentMeasure.current) % 4 == 0 && !isAudioSent) {
+        // if ((currentMeasure.current) % 4 == 0 && !isAudioSent) { // trading 4s
+        if (currentMeasure.current == ((measuresToRecord / 2) + 1)  && !isAudioSent) { // trading 8s
           console.log('sending chunks on measure: ', currentMeasure.current);
-          console.log('audioChunks.current len: ', audioChunks.current.length);
-          console.log('chunk len: ', audioChunks.current[0]);
 
           // Compute length of audioChunks
           const audioLen = audioChunks.current.reduce((sum, chunk) => sum + chunk.length, 0);
-          console.log('audioLen: ', audioLen);
           
           // Create big buffer
           const mergedAudio = new Int16Array(audioLen);
-
-          console.log('mergedAudio len: ', mergedAudio.length);
-          console.log('expected time: ', mergedAudio.length / sampleRate);
 
           // Copy data into buffer 
           let offset = 0;
@@ -361,7 +340,6 @@ const Muse: React.FC = () => {
           ws.current.send("END_OF_AUDIO");
 
           audioChunks.current = []; // reset audioChunks after sent to backend
-          console.log("Sent END_OF_AUDIO signal for user.", 'debug');
           isAudioSent = true;
         } 
       }
@@ -371,15 +349,19 @@ const Muse: React.FC = () => {
 
   // --- Render UI ---
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '800px', margin: 'auto', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+    <div style={{ fontFamily: 'Inter, sans-serif', maxWidth: '50em', margin: 'auto', padding: '4em', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
       <Instructions />
-      <h1 style={{ color: '#2c3e50', textAlign: 'center', marginBottom: '20px' }}>AI Jamming App</h1>
-      <p style={{ textAlign: 'center', marginBottom: '30px', color: '#555' }}>
-        Transcribe your audio to MIDI, predict continuations with AI, and play the result.
-      </p>
+      <h1 style={{ color: '#2c3e50', textAlign: 'center', marginBottom: '1em' }}>Control Center</h1>
+
       <TempoControl 
         tempo={bpm}
+        isJamming={isJamming}
         setTempo={setBPM}
+      />
+      <TemperatureControl 
+        isJamming={isJamming}
+        temperature={temperature}
+        setTemperature={setTemperature}
       />
       <BeatFlasher 
         currentBeat={currentBeat}
@@ -390,36 +372,6 @@ const Muse: React.FC = () => {
         isJamming={isJamming}
       />
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px' }}>
-        {/* <button
-          onClick={connectWebSocket}
-          disabled={isConnected || isModelLoading}
-          style={{ backgroundColor: (isConnected || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
-        >
-          {isModelLoading ? 'Loading AI Model...' : (isConnected ? 'WS Connected' : 'Connect WebSocket')}
-        </button>
-        <button
-          onClick={disconnectWebSocket}
-          disabled={!isConnected}
-          style={{ backgroundColor: !isConnected ? '#cccccc' : '#dc3545', color: 'white' }}
-        >
-          Disconnect WS
-        </button> */}
-        {/* <button
-          onClick={() => 
-            selectedModel === BASIC_RNN ? setSelectedModel(MELODY_RNN) 
-            : selectedModel === MELODY_RNN ? setSelectedModel(CHORD_PITCHES_IMPROV_RNN) 
-            : setSelectedModel(BASIC_RNN)
-          }
-          disabled={isConnected || isModelLoading}
-          style={{ backgroundColor: (isConnected || isModelLoading) ? '#cccccc' : '#28a745', color: 'white' }}
-        >
-          {
-            (selectedModel === BASIC_RNN) ? "BASIC_RNN" : 
-            (selectedModel === MELODY_RNN) ? "MELODY_RNN" : 
-            (selectedModel === CHORD_PITCHES_IMPROV_RNN) ? "CHORD_PITCHES_IMPROV_RNN" : 
-            "NO MODEL SELECTED"
-          }
-        </button> */}
         <button
           onClick={async () => {
             await Tone.start();
@@ -460,8 +412,8 @@ const Muse: React.FC = () => {
         bpm={bpm}
         chordProg={chordNames}
         instrument={instrument}
-        modelCheckpointURL={CONSTANTS.BASIC_RNN.URL}
         basicPitchSeq={basicPitchResult.current}
+        temperature={temperature}
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
         isModelLoading={isModelLoading}

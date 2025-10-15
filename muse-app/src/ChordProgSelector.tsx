@@ -1,14 +1,6 @@
 import React from "react";
 import { Box, FormControl, InputLabel, Select, MenuItem, Typography } from "@mui/material";
 
-// const chords = [
-//   "C", "Db", "D", "Eb", "E",
-//   "F", "F#", "G", "Ab", "A",
-//   "Bb", "B", "Cm", "C#m", "Dm",
-//   "Ebm", "Em", "Fm", "F#m", "Gm",
-//   "G#m", "Am", "Bbm", "Bm"
-// ];
-
 const chords = [
   "I", "ii", "II", "iii", "IV", "V", "vi", "VI",  "vii°",
   "i", "III", "iv", "v", "bVI", "bVII"

@@ -49,10 +49,10 @@ export default function Instructions() {
         </Typography>
         <Box component="ul" sx={{ pl: 3 }}>
           <li><Typography>Allow microphone access when prompted.</Typography></li>
-          <li><Typography>Select tempo, key, and chord progression.</Typography></li>
+          <li><Typography>Select tempo, key, chord progression, and how spicy your want Muse to be.</Typography></li>
           <li><Typography>Start the jam!</Typography></li>
-          <li><Typography>Muse will count in one measure, then begin trading 4's with you!
-            <br/>(You play 4 measures, then Muse plays 4 measures)</Typography></li>
+          <li><Typography>Muse will count in one measure, then begin trading 8s with you!
+            <br/>(You play 8 measures, then Muse plays 8 measures)</Typography></li>
           <li><Typography><i>Note: After the count-in, the jam starts with you, so be ready!</i></Typography></li>
         </Box>
         <br/>
@@ -62,6 +62,8 @@ export default function Instructions() {
         <Box component="ul" sx={{ pl: 3}} >
             <li><Typography>Make sure your internet connection is strong.</Typography></li>
             <li><Typography>Setting tempo too fast can make Muse struggle.</Typography></li>
+            <li><Typography>The "Spiciness" sets the temperature of Muse's model. Thus more spiciness will 
+                make Muse more likely to play non-diatonically.</Typography></li>
             <li><Typography>Selecting the 'Key' determines the key of the model output,
                 but you can select a chord progression that contains non-diatonic chords. 
                 For example, you can have Muse improvise in the key of Am, but play 

@@ -9,8 +9,8 @@ export interface MagentaProps {
     bpm: number,
     chordProg: string[],
     instrument: Tone.Synth | Tone.Sampler,
-    modelCheckpointURL?: string,
     basicPitchSeq: INoteSequence,
+    temperature: number,
     selectedModel: ModelKey,
     setSelectedModel: React.Dispatch<React.SetStateAction<ModelKey>>,
     isModelLoading: boolean,
@@ -26,8 +26,8 @@ const Magenta: React.FC<MagentaProps> =({
     bpm,
     chordProg,
     instrument,
-    modelCheckpointURL,
     basicPitchSeq,
+    temperature,
     selectedModel,
     setSelectedModel,
     isModelLoading,
@@ -41,14 +41,6 @@ const Magenta: React.FC<MagentaProps> =({
         setSelectedModel,
         isModelLoading,
         setIsModelLoading,
-        isGeneratingNotes,
-        setIsGeneratingNotes,
-        modelCheckpointURL,
-        keySig,
-        bpm,
-        instrument,
-        chordProg,
-        basicPitchSeq
     })
 
     // Makes call to Magenta model and plays it's output
@@ -56,7 +48,7 @@ const Magenta: React.FC<MagentaProps> =({
         // console.log('predictAndPlay basicPitchSeq: ', basicPitchSeq);
         
         // Gets note generated from Magenta model
-        const magentaSeq = await predictNotes(chordProg, basicPitchSeq);
+        const magentaSeq = await predictNotes(temperature, chordProg, basicPitchSeq);
         setIsGeneratingNotes(false);
 
         // Plays notes using Tone.JS

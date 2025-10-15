@@ -188,7 +188,8 @@ export async function magentaToToneSeq(noteSeq: INoteSequence, interval: number,
                 // console.log('adjustedTime: ', adjustedTime);
 
                 // Exit loop if note times go beyond measure 8
-                if (parseInt(adjustedTime.split(":")[0]) > 8) {
+                // if (parseInt(adjustedTime.split(":")[0]) > 8) { If trading 4s
+                if (parseInt(adjustedTime.split(":")[0]) > 16) { // If trading 8s
                     console.log('exiting loop for adding notes')
                     break;
                 }

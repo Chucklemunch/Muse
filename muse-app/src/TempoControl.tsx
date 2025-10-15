@@ -4,10 +4,11 @@ import { Slider, Typography, Box } from "@mui/material";
 
 export interface TempoControlProps {
   tempo: number;
+  isJamming: boolean;
   setTempo: React.Dispatch<React.SetStateAction<number>>;
 }
 
-const TempoControl: React.FC<TempoControlProps> = ({ tempo, setTempo }) => {
+const TempoControl: React.FC<TempoControlProps> = ({ tempo, isJamming, setTempo }) => {
   const handleChange = (_: Event, value: number | number[]) => {
     const bpm = Array.isArray(value) ? value[0] : value;
     setTempo(bpm);
@@ -23,11 +24,12 @@ const TempoControl: React.FC<TempoControlProps> = ({ tempo, setTempo }) => {
       <Slider
         value={tempo}
         onChange={handleChange}
-        min={40}
-        max={240}
+        disabled={isJamming}
+        min={60}
+        max={200}
         step={1}
         valueLabelDisplay="auto"
-        sx={{ color: "primary.main" }}
+        sx={{ color: "#E8691A" }}
       />
       <Typography variant="body1">{tempo} BPM</Typography>
     </Box>
