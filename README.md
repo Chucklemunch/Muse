@@ -21,4 +21,4 @@
 
 ### Demo Video
 
-COMING SOON...
+<video controls src="video1373702196.mp4" title="Muse Demo"></video>
