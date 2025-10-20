@@ -62,12 +62,24 @@ export default function Instructions() {
         <Box component="ul" sx={{ pl: 3}} >
             <li><Typography>Make sure your internet connection is strong.</Typography></li>
             <li><Typography>Setting tempo too fast can make Muse struggle.</Typography></li>
-            <li><Typography>The "Spiciness" sets the temperature of Muse's model. Thus more spiciness will 
+            <li><Typography>The "Spiciness" sets the temperature of Muse's model. Thus, more spiciness will 
                 make Muse more likely to play non-diatonically.</Typography></li>
             <li><Typography>Selecting the 'Key' determines the key of the model output,
                 but you can select a chord progression that contains non-diatonic chords. 
                 For example, you can have Muse improvise in the key of Am, but play 
                 a chord progression typical in the key of A (major) for a bluesy sound. </Typography></li>
+        </Box>
+        <br/>
+        <Typography gutterBottom>
+          Known Issues:
+        </Typography>          
+        <Box component="ul" sx={{ pl: 3}} >
+            <li><Typography>Weak internet connection causes problems, 
+              as real-time note generation requires making API calls to a server in a land far far away.</Typography></li>
+            <li><Typography>Does not work on mobile.</Typography></li>
+            <li><Typography>Increasing tempo too high also causes problems, as model cannot keep up with progression through time.</Typography></li>
+            <li><Typography>Some JavaScript libaries used have serious limitations that cause congestion on the app's main thread, 
+              leading to skipping or stalling on certain chords or beats.</Typography></li>
         </Box>
       </DialogContent>
 
